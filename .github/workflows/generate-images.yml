@@ -7,6 +7,11 @@ on:
         description: 'Regenerate ALL product images (default: only SKUs missing an image)'
         type: boolean
         default: false
+  # Alternative trigger: commit any change to .github/image-gen-trigger
+  # (useful when workflow_dispatch isn't available, e.g. before this file
+  # lands on the default branch). Generates missing images only.
+  push:
+    paths: ['.github/image-gen-trigger']
 
 concurrency: flux-image-gen
 
