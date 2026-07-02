@@ -1,5 +1,7 @@
 # 🩺 Flavor Doctors
 
+**Live at [flavordoctors.jer-f84.workers.dev](https://flavordoctors.jer-f84.workers.dev)** — deployed automatically by Cloudflare Workers Builds on every push to this repo.
+
 Subscription-based e-commerce for a small-batch sauce & seasoning brand, built entirely on Cloudflare:
 
 - **Frontend:** React + TypeScript + Tailwind CSS (Vite), served as Workers static assets (SPA)
@@ -97,7 +99,7 @@ npm run db:seed         # load the 34-product catalog
 Create a webhook endpoint in the Stripe dashboard pointing at:
 
 ```
-https://<your-worker>.workers.dev/api/webhooks/stripe
+https://flavordoctors.jer-f84.workers.dev/api/webhooks/stripe
 ```
 
 with events: `checkout.session.completed`, `customer.subscription.updated`,
@@ -119,7 +121,20 @@ needs an authenticated session (`wrangler login` or `CLOUDFLARE_API_TOKEN`).
 
 ### 6. Deploy
 
-**Via GitHub Actions (recommended — no local wrangler login needed):**
+**Via Cloudflare Workers Builds (already active):** this repo is connected to
+Workers Builds, so every push builds and deploys the Worker automatically —
+no credentials or manual steps needed for code changes.
+
+Workers Builds does **not** manage Worker secrets or run D1 migrations. Set the
+secrets once, either in the Cloudflare dashboard (Workers & Pages →
+`flavordoctors` → Settings → Variables and Secrets): `STRIPE_SECRET_KEY`,
+`STRIPE_WEBHOOK_SECRET`, `JWT_SECRET`, and optionally `RESEND_API_KEY` — or via
+the GitHub Actions deploy workflow below. Until `JWT_SECRET` is set,
+registration/login will error; until the Stripe secrets are set, checkout and
+webhooks will error (catalog browsing works regardless). Future migrations can
+be applied with `npm run db:migrate` or the Actions workflow.
+
+**Via GitHub Actions (alternative — also syncs secrets and runs migrations):**
 
 Deployment is automated in `.github/workflows/deploy.yml`. Every push to `main`
 typechecks, builds, applies D1 migrations, deploys the Worker, and syncs Worker
