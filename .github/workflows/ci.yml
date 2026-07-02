@@ -19,3 +19,36 @@ jobs:
       - run: npm run build
       - name: Validate wrangler config (dry run)
         run: npx wrangler deploy --dry-run
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Prepare offline local stack
+        run: |
+          printf 'JWT_SECRET=ci-e2e-secret\nSTRIPE_SECRET_KEY=sk_test_dummy\nSTRIPE_WEBHOOK_SECRET=whsec_dummy\n' > .dev.vars
+          # The AI binding needs remote credentials; tests assert the graceful fallbacks.
+          sed -i 's/^\[ai\]/#[ai]/; s/^binding = "AI"/#binding = "AI"/' wrangler.toml
+          npx wrangler d1 migrations apply flavordoctors-db --local
+          npx wrangler d1 execute flavordoctors-db --local --file=./seed.sql
+      - name: Run E2E audit
+        run: |
+          npx wrangler dev --port 8791 > wrangler-dev.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:8791/api/products && break; sleep 1; done
+          npm run test:e2e
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            test-results/
+            wrangler-dev.log
+          retention-days: 7

@@ -130,12 +130,12 @@ export function AdminProducts() {
           <h3 className="text-xl font-bold">{editing.id ? `Edit: ${editing.name}` : 'New Product'}</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-bold">Name</label>
-              <input className="input" required value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+              <label htmlFor="admin-name" className="mb-1 block text-sm font-bold">Name</label>
+              <input id="admin-name" className="input" required value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-bold">Collection</label>
-              <select className="input" value={editing.collection} onChange={(e) => setEditing({ ...editing, collection: e.target.value })}>
+              <label htmlFor="admin-collection" className="mb-1 block text-sm font-bold">Collection</label>
+              <select id="admin-collection" className="input" value={editing.collection} onChange={(e) => setEditing({ ...editing, collection: e.target.value })}>
                 {COLLECTIONS.map((c) => (
                   <option key={c.key} value={c.key}>
                     {c.label}
@@ -145,13 +145,13 @@ export function AdminProducts() {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-bold">Description</label>
-            <textarea className="input" rows={2} required value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
+            <label htmlFor="admin-description" className="mb-1 block text-sm font-bold">Description</label>
+            <textarea id="admin-description" className="input" rows={2} required value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
           </div>
           <div className="flex flex-wrap items-end gap-6">
             <div>
-              <label className="mb-1 block text-sm font-bold">Price (USD)</label>
-              <input className="input w-32" required type="number" step="0.01" min="0.5" value={editing.price} onChange={(e) => setEditing({ ...editing, price: e.target.value })} />
+              <label htmlFor="admin-price" className="mb-1 block text-sm font-bold">Price (USD)</label>
+              <input id="admin-price" className="input w-32" required type="number" step="0.01" min="0.5" value={editing.price} onChange={(e) => setEditing({ ...editing, price: e.target.value })} />
             </div>
             <label className="flex items-center gap-2 font-bold">
               <input type="checkbox" className="h-5 w-5" checked={editing.isActive} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} />
@@ -169,8 +169,9 @@ export function AdminProducts() {
           {editing.isDrop && (
             <div className="flex flex-wrap items-end gap-6 rounded-lg border border-gold/40 p-4">
               <div>
-                <label className="mb-1 block text-sm font-bold">Public enrollment opens (subscribers get 48h early)</label>
+                <label htmlFor="admin-drop-starts" className="mb-1 block text-sm font-bold">Public enrollment opens (subscribers get 48h early)</label>
                 <input
+                  id="admin-drop-starts"
                   className="input"
                   type="datetime-local"
                   required
@@ -179,8 +180,9 @@ export function AdminProducts() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-bold">Stock (blank = unlimited)</label>
+                <label htmlFor="admin-drop-stock" className="mb-1 block text-sm font-bold">Stock (blank = unlimited)</label>
                 <input
+                  id="admin-drop-stock"
                   className="input w-32"
                   type="number"
                   min="0"
