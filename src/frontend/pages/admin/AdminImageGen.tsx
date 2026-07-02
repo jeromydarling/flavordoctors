@@ -14,6 +14,7 @@ export function AdminImageGen() {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [bulk, setBulk] = useState({ running: false, done: 0, total: 0, failed: 0 });
 
   useEffect(() => {
     api
@@ -22,14 +23,16 @@ export function AdminImageGen() {
       .catch(() => setProducts([]));
   }, []);
 
-  const generate = async (p: Product) => {
+  const generate = async (p: Product): Promise<boolean> => {
     setBusyIds((prev) => new Set(prev).add(p.id));
     setErrors((prev) => ({ ...prev, [p.id]: '' }));
     try {
       const { imageUrl } = await api.post<{ imageUrl: string }>(`/api/admin/products/${p.id}/generate-image`);
       setProducts((prev) => prev?.map((x) => (x.id === p.id ? { ...x, imageUrl } : x)) ?? null);
+      return true;
     } catch (err) {
       setErrors((prev) => ({ ...prev, [p.id]: err instanceof ApiError ? err.message : 'Generation failed' }));
+      return false;
     } finally {
       setBusyIds((prev) => {
         const next = new Set(prev);
@@ -37,6 +40,22 @@ export function AdminImageGen() {
         return next;
       });
     }
+  };
+
+  const generateAllMissing = async () => {
+    const queue = products?.filter((p) => !p.imageUrl) ?? [];
+    setBulk({ running: true, done: 0, total: queue.length, failed: 0 });
+    let done = 0;
+    let failed = 0;
+    // Sequential on purpose: keeps within Workers AI rate limits.
+    for (const p of queue) {
+      const ok = await generate(p);
+      done += 1;
+      if (!ok) failed += 1;
+      setBulk({ running: true, done, total: queue.length, failed });
+      if (failed >= 3 && failed === done) break; // first three all failed — likely misconfig, stop early
+    }
+    setBulk((b) => ({ ...b, running: false }));
   };
 
   const missing = products?.filter((p) => !p.imageUrl).length ?? 0;
@@ -52,6 +71,24 @@ export function AdminImageGen() {
             <code className="rounded bg-navy-light px-1">products/&#123;slug&#125;/hero.png</code>.
             {missing > 0 && <span className="ml-2 font-bold text-gold">{missing} SKUs missing images.</span>}
           </p>
+        </div>
+        <div className="text-right">
+          <button
+            className="btn-gold !py-2 !text-base"
+            disabled={bulk.running || missing === 0}
+            onClick={generateAllMissing}
+          >
+            {bulk.running
+              ? `Generating… ${bulk.done}/${bulk.total}`
+              : missing === 0
+                ? 'All images generated ✓'
+                : `✦ Generate all ${missing} missing`}
+          </button>
+          {bulk.total > 0 && !bulk.running && (
+            <p className="mt-2 text-sm text-medical/60">
+              Batch finished: {bulk.done - bulk.failed} generated{bulk.failed > 0 ? `, ${bulk.failed} failed` : ''}.
+            </p>
+          )}
         </div>
       </div>
 
