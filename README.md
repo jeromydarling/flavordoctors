@@ -119,8 +119,33 @@ needs an authenticated session (`wrangler login` or `CLOUDFLARE_API_TOKEN`).
 
 ### 6. Deploy
 
+**Via GitHub Actions (recommended — no local wrangler login needed):**
+
+Deployment is automated in `.github/workflows/deploy.yml`. Every push to `main`
+typechecks, builds, applies D1 migrations, deploys the Worker, and syncs Worker
+secrets from GitHub repo secrets. Set these under
+**Settings → Secrets and variables → Actions**:
+
+| GitHub secret | Required | Notes |
+| --- | --- | --- |
+| `CLOUDFLARE_API_TOKEN` | ✅ | API token with Workers Scripts:Edit + D1:Edit (start from the "Edit Cloudflare Workers" template and add D1) |
+| `CLOUDFLARE_ACCOUNT_ID` | if the token spans multiple accounts | Cloudflare dashboard → Workers & Pages → right sidebar |
+| `STRIPE_SECRET_KEY` | ✅ | synced to the Worker on each deploy |
+| `STRIPE_WEBHOOK_SECRET` | ✅ | synced to the Worker on each deploy |
+| `JWT_SECRET` | optional | auto-generated on first deploy if omitted |
+| `RESEND_API_KEY` | optional | enables confirmation emails |
+
+The deploy workflow can also be run manually (**Actions → Deploy → Run workflow**),
+with an opt-in checkbox to re-run the catalog seed (off by default — re-seeding
+resets `ai_description`/`image_r2_key` on the 34 seed SKUs).
+
+`.github/workflows/ci.yml` runs typecheck + build + a wrangler dry-run on every
+pull request and non-main push.
+
+**Or locally:**
+
 ```bash
-npm run deploy         # vite build && wrangler deploy
+npm run deploy         # vite build && wrangler deploy (needs wrangler login)
 ```
 
 ## How the moving parts fit together
