@@ -13,7 +13,7 @@ Subscription-based e-commerce for a small-batch sauce & seasoning brand, built e
   - `@cf/black-forest-labs/flux-1-schnell` — consistent product photography per SKU
 - **Payments:** Stripe Checkout (one-time) + Stripe Subscriptions (Monthly Rx Box) + Customer Portal
 - **Auth:** JWT (HS256, HttpOnly cookie) signed in the Worker; PBKDF2 password hashing via WebCrypto
-- **Email:** Order/subscription confirmations via Resend (optional, graceful no-op without a key)
+- **Email:** Cloudflare Email Service (`EMAIL` send_email binding, Workers Paid — 3,000/mo included, then $0.35/1k), with optional Resend fallback; graceful no-op if neither is configured
 
 ## Project layout
 
@@ -84,9 +84,23 @@ wrangler r2 bucket create flavordoctors-product-images
 | `STRIPE_SECRET_KEY` | secret | Stripe API key (`sk_...`) |
 | `STRIPE_WEBHOOK_SECRET` | secret | Webhook signing secret (`whsec_...`) |
 | `JWT_SECRET` | secret | Random string for signing auth tokens |
-| `RESEND_API_KEY` | secret (optional) | Enables confirmation emails via Resend |
+| `RESEND_API_KEY` | secret (optional) | Fallback email provider if the Email Service binding is absent/fails |
 | `ADMIN_EMAILS` | var (`wrangler.toml`) | Comma-separated admin email allowlist |
-| `EMAIL_FROM` | var (`wrangler.toml`) | From address for transactional email |
+| `EMAIL_FROM` | var (`wrangler.toml`) | From address — must be on your Email Service sending domain |
+
+**Email Service setup (one-time, dashboard):** transactional email sends through
+Cloudflare Email Service via the `EMAIL` binding in `wrangler.toml`. To activate it:
+
+1. Add a domain to your Cloudflare account (if you don't have one attached yet).
+2. Dashboard → **Compute → Email Service → Email Sending → Onboard Domain** —
+   Cloudflare auto-creates the SPF/DKIM/DMARC/bounce DNS records (`cf-bounce` subdomain).
+3. Set `EMAIL_FROM` in `wrangler.toml` to an address on that domain (e.g.
+   `Flavor Doctors <orders@yourdomain.com>`) and redeploy.
+
+Until a sending domain is onboarded, Email Service only delivers to your account's
+verified destination addresses (those sends are free and don't count against quota) —
+useful for testing. In `wrangler dev`, sends are simulated and logged locally; set
+`remote = true` on the binding to send real email during development.
 
 ```bash
 wrangler secret put STRIPE_SECRET_KEY

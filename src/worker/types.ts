@@ -1,8 +1,26 @@
+/** Cloudflare Email Service send binding (structured send API). */
+export interface EmailAddress {
+  email: string;
+  name?: string;
+}
+
+export interface EmailSendBinding {
+  send(message: {
+    from: string | EmailAddress;
+    to: string | EmailAddress | (string | EmailAddress)[];
+    subject: string;
+    html?: string;
+    text?: string;
+    replyTo?: string | EmailAddress;
+  }): Promise<{ messageId?: string }>;
+}
+
 export interface Env {
   DB: D1Database;
   PRODUCT_IMAGES: R2Bucket;
   AI: Ai;
   ASSETS: Fetcher;
+  EMAIL?: EmailSendBinding;
   ADMIN_EMAILS?: string;
   EMAIL_FROM?: string;
   STRIPE_SECRET_KEY: string;

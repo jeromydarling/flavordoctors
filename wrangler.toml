@@ -23,6 +23,13 @@ bucket_name = "flavordoctors-product-images"
 [ai]
 binding = "AI"
 
+# Cloudflare Email Service (outbound transactional email; Workers Paid).
+# Requires a sending domain onboarded in the dashboard:
+# Compute → Email Service → Email Sending → Onboard Domain,
+# then set EMAIL_FROM below to an address on that domain.
+[[send_email]]
+name = "EMAIL"
+
 # Nightly at 16:00 UTC: refill reminders, win-back emails, drop notifications.
 [triggers]
 crons = ["0 16 * * *"]

@@ -1,33 +1,61 @@
-import type { Env } from '../types';
+import type { Env, EmailAddress } from '../types';
+
+/** Parse an RFC-style "Name <addr@domain>" string into a structured address. */
+function parseFrom(raw: string | undefined): EmailAddress {
+  const fallback = { email: 'orders@flavordoctors.example', name: 'Flavor Doctors' };
+  if (!raw) return fallback;
+  const match = raw.match(/^\s*(?:"?([^"<]*)"?\s*)?<([^>]+)>\s*$/);
+  if (match) return { name: match[1]?.trim() || undefined, email: match[2].trim() };
+  return raw.includes('@') ? { email: raw.trim() } : fallback;
+}
 
 /**
- * Send a transactional email. Uses Resend if RESEND_API_KEY is configured;
- * otherwise logs and no-ops so checkout flows never fail on email problems.
- * (Swap this for Cloudflare Email Workers / another provider as desired.)
+ * Send a transactional email.
+ *
+ * Provider chain:
+ *  1. Cloudflare Email Service (`EMAIL` send_email binding) — native, 3,000/mo
+ *     included on Workers Paid. Requires a sending domain onboarded under
+ *     Email Service → Email Sending, and EMAIL_FROM on that domain.
+ *  2. Resend (RESEND_API_KEY secret) — fallback if the binding is absent or errors.
+ *  3. No-op with a log line — email problems never break checkout flows.
  */
 export async function sendEmail(env: Env, to: string, subject: string, html: string): Promise<void> {
-  if (!env.RESEND_API_KEY) {
-    console.log(`[email skipped — no RESEND_API_KEY] to=${to} subject="${subject}"`);
+  const from = parseFrom(env.EMAIL_FROM);
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  if (env.EMAIL) {
+    try {
+      const result = await env.EMAIL.send({ from, to, subject, html, text });
+      console.log(`Email sent via Email Service to=${to} id=${result.messageId ?? 'n/a'}`);
+      return;
+    } catch (err) {
+      console.error('Email Service send failed, trying fallback:', err);
+    }
+  }
+
+  if (env.RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: env.EMAIL_FROM ?? 'Flavor Doctors <onboarding@resend.dev>',
+          to: [to],
+          subject,
+          html,
+        }),
+      });
+      if (!res.ok) console.error(`Resend send failed (${res.status}): ${await res.text()}`);
+    } catch (err) {
+      console.error('Resend send failed:', err);
+    }
     return;
   }
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: env.EMAIL_FROM ?? 'Flavor Doctors <onboarding@resend.dev>',
-        to: [to],
-        subject,
-        html,
-      }),
-    });
-    if (!res.ok) console.error(`Email send failed (${res.status}): ${await res.text()}`);
-  } catch (err) {
-    console.error('Email send failed:', err);
-  }
+
+  console.log(`[email skipped — no EMAIL binding or RESEND_API_KEY] to=${to} subject="${subject}"`);
 }
 
 const wrapper = (body: string) => `
