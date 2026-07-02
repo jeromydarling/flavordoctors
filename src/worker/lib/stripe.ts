@@ -26,6 +26,11 @@ function flattenParams(obj: unknown, prefix = '', out: [string, string][] = []):
 export interface StripeError extends Error {
   status: number;
   stripeCode?: string;
+  isStripeError: true;
+}
+
+export function isStripeError(err: unknown): err is StripeError {
+  return err instanceof Error && (err as StripeError).isStripeError === true;
 }
 
 export async function stripeRequest<T = Record<string, unknown>>(
@@ -50,11 +55,21 @@ export async function stripeRequest<T = Record<string, unknown>>(
     init.body = new URLSearchParams(flattenParams(params)).toString();
   }
   const res = await fetch(url, init);
-  const data = (await res.json()) as T & { error?: { message?: string; code?: string } };
+  const raw = await res.text();
+  let data: T & { error?: { message?: string; code?: string } };
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    const err = new Error(`Stripe returned a non-JSON response (${res.status}): ${raw.slice(0, 120)}`) as StripeError;
+    err.status = res.status || 502;
+    err.isStripeError = true;
+    throw err;
+  }
   if (!res.ok) {
     const err = new Error(data.error?.message ?? `Stripe API error (${res.status})`) as StripeError;
     err.status = res.status;
     err.stripeCode = data.error?.code;
+    err.isStripeError = true;
     throw err;
   }
   return data;
@@ -89,6 +104,24 @@ export async function verifyStripeSignature(
   const expectedHex = [...mac].map((b) => b.toString(16).padStart(2, '0')).join('');
   const expectedBytes = encoder.encode(expectedHex);
   return signatures.some((sig) => timingSafeEqual(expectedBytes, encoder.encode(sig)));
+}
+
+/**
+ * Ensure a reusable coupon exists (idempotent by id). Returns the coupon id.
+ */
+export async function ensureCoupon(env: Env, id: string, percentOff: number, name: string): Promise<string> {
+  try {
+    await stripeRequest(env, 'GET', `/v1/coupons/${id}`);
+    return id;
+  } catch (err) {
+    if ((err as StripeError).status !== 404) throw err;
+  }
+  try {
+    await stripeRequest(env, 'POST', '/v1/coupons', { id, percent_off: percentOff, duration: 'once', name });
+  } catch (err) {
+    if ((err as StripeError).stripeCode !== 'resource_already_exists') throw err;
+  }
+  return id;
 }
 
 /** Get or create the Stripe customer for a user, persisting the id in D1. */

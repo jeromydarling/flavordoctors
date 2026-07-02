@@ -1,23 +1,43 @@
-import type { SubscriptionRow, TierKey } from '../types';
-import { TIERS } from '../types';
+import type { SubscriptionRow, TierKey, CadenceKey } from '../types';
+import { TIERS, CADENCES, LIVE_SUB_STATUSES, FIRST_BOX_COUPON } from '../types';
 import { json, errorResponse, readJson } from '../lib/util';
-import { stripeRequest, ensureStripeCustomer } from '../lib/stripe';
+import { stripeRequest, ensureStripeCustomer, ensureCoupon } from '../lib/stripe';
 import { requireAuth } from '../lib/auth';
+
+const LIVE = LIVE_SUB_STATUSES.map(() => '?').join(',');
 
 /** Start a Monthly Rx Box subscription via Stripe Checkout (auth required). */
 export const createSubscription = requireAuth(async (req, rc) => {
-  const body = await readJson<{ tier?: string }>(req);
+  const body = await readJson<{ tier?: string; cadence?: string }>(req);
   const tierKey = body?.tier as TierKey | undefined;
   if (!tierKey || !(tierKey in TIERS)) return errorResponse('Unknown subscription tier');
+  const cadenceKey = (body?.cadence ?? 'monthly') as CadenceKey;
+  if (!(cadenceKey in CADENCES)) return errorResponse('Unknown cadence');
   const tier = TIERS[tierKey];
+  const cadence = CADENCES[cadenceKey];
   const user = rc.user!;
 
   const existing = await rc.env.DB.prepare(
-    "SELECT id FROM subscriptions WHERE user_id = ? AND status IN ('active', 'past_due')"
+    `SELECT id FROM subscriptions WHERE user_id = ? AND status IN (${LIVE})`
   )
-    .bind(user.id)
+    .bind(user.id, ...LIVE_SUB_STATUSES)
     .first();
   if (existing) return errorResponse('You already have an active subscription. Manage it from your account.', 409);
+
+  // First-box 20% off for brand-new subscribers (never had a subscription).
+  const everSubscribed = await rc.env.DB.prepare('SELECT id FROM subscriptions WHERE user_id = ? LIMIT 1')
+    .bind(user.id)
+    .first();
+  let discounts: { coupon: string }[] | undefined;
+  if (!everSubscribed) {
+    try {
+      discounts = [
+        { coupon: await ensureCoupon(rc.env, FIRST_BOX_COUPON.id, FIRST_BOX_COUPON.percentOff, FIRST_BOX_COUPON.name) },
+      ];
+    } catch (err) {
+      console.error('First-box coupon unavailable, continuing without discount:', err);
+    }
+  }
 
   const customerId = await ensureStripeCustomer(rc.env, user.id, user.email);
   const origin = new URL(req.url).origin;
@@ -27,23 +47,24 @@ export const createSubscription = requireAuth(async (req, rc) => {
     customer: customerId,
     success_url: `${origin}/account/customize?welcome=1`,
     cancel_url: `${origin}/subscribe`,
+    ...(discounts ? { discounts } : {}),
     line_items: [
       {
         quantity: 1,
         price_data: {
           currency: 'usd',
           unit_amount: tier.price,
-          recurring: { interval: 'month' },
+          recurring: { interval: 'month', interval_count: cadence.intervalCount },
           product_data: {
-            name: `Flavor Doctors Monthly Rx Box — ${tier.name}`,
-            description: `${tier.items} doctored items delivered monthly`,
+            name: `Flavor Doctors Rx Box — ${tier.name} (${cadence.label})`,
+            description: `${tier.items} doctored items, delivered ${cadence.label.toLowerCase()}`,
           },
         },
       },
     ],
-    metadata: { kind: 'subscription', tier: tierKey, user_id: user.id },
+    metadata: { kind: 'subscription', tier: tierKey, cadence: cadenceKey, user_id: user.id },
     subscription_data: {
-      metadata: { tier: tierKey, user_id: user.id },
+      metadata: { tier: tierKey, cadence: cadenceKey, user_id: user.id },
     },
   });
 
@@ -69,11 +90,7 @@ export const updateBoxItems = requireAuth(async (req, rc) => {
     return errorResponse('items must be an array of product ids');
   }
 
-  const sub = await rc.env.DB.prepare(
-    "SELECT * FROM subscriptions WHERE user_id = ? AND status IN ('active', 'past_due') ORDER BY created_at DESC LIMIT 1"
-  )
-    .bind(rc.user!.id)
-    .first<SubscriptionRow>();
+  const sub = await liveSubscription(rc, rc.user!.id);
   if (!sub) return errorResponse('No active subscription found', 404);
 
   const tier = TIERS[sub.tier as TierKey];
@@ -97,6 +114,57 @@ export const updateBoxItems = requireAuth(async (req, rc) => {
   return json({ ok: true, items: unique });
 });
 
+/** Skip the next box: void collection for exactly one billing period. */
+export const skipNextBox = requireAuth(async (_req, rc) => {
+  const sub = await liveSubscription(rc, rc.user!.id);
+  if (!sub?.stripe_subscription_id) return errorResponse('No active subscription found', 404);
+
+  const stripeSub = await stripeRequest<{ current_period_end?: number; pause_collection?: unknown }>(
+    rc.env,
+    'GET',
+    `/v1/subscriptions/${sub.stripe_subscription_id}`
+  );
+  if (stripeSub.pause_collection) return errorResponse('Your subscription is already paused');
+  if (!stripeSub.current_period_end) return errorResponse('Could not determine your billing period', 500);
+
+  // Void the invoice at the end of this period; billing resumes on the following cycle.
+  const resumesAt = stripeSub.current_period_end + 60;
+  await stripeRequest(rc.env, 'POST', `/v1/subscriptions/${sub.stripe_subscription_id}`, {
+    pause_collection: { behavior: 'void', resumes_at: resumesAt },
+  });
+  await rc.env.DB.prepare("UPDATE subscriptions SET status = 'paused' WHERE id = ?").bind(sub.id).run();
+  return json({ ok: true, resumesAt: new Date(resumesAt * 1000).toISOString() });
+});
+
+/** Pause the subscription for 1-3 months. */
+export const pauseSubscription = requireAuth(async (req, rc) => {
+  const body = await readJson<{ months?: number }>(req);
+  const months = body?.months;
+  if (!Number.isInteger(months) || months! < 1 || months! > 3) {
+    return errorResponse('months must be 1, 2, or 3');
+  }
+  const sub = await liveSubscription(rc, rc.user!.id);
+  if (!sub?.stripe_subscription_id) return errorResponse('No active subscription found', 404);
+
+  const resumesAt = Math.floor(Date.now() / 1000) + months! * 30 * 86400;
+  await stripeRequest(rc.env, 'POST', `/v1/subscriptions/${sub.stripe_subscription_id}`, {
+    pause_collection: { behavior: 'void', resumes_at: resumesAt },
+  });
+  await rc.env.DB.prepare("UPDATE subscriptions SET status = 'paused' WHERE id = ?").bind(sub.id).run();
+  return json({ ok: true, resumesAt: new Date(resumesAt * 1000).toISOString() });
+});
+
+/** Resume a paused subscription immediately. */
+export const resumeSubscription = requireAuth(async (_req, rc) => {
+  const sub = await liveSubscription(rc, rc.user!.id);
+  if (!sub?.stripe_subscription_id) return errorResponse('No subscription found', 404);
+  await stripeRequest(rc.env, 'POST', `/v1/subscriptions/${sub.stripe_subscription_id}`, {
+    pause_collection: '',
+  });
+  await rc.env.DB.prepare("UPDATE subscriptions SET status = 'active' WHERE id = ?").bind(sub.id).run();
+  return json({ ok: true });
+});
+
 /** Stripe Customer Portal session for billing management. */
 export const createPortalSession = requireAuth(async (req, rc) => {
   const customerId = await ensureStripeCustomer(rc.env, rc.user!.id, rc.user!.email);
@@ -108,14 +176,28 @@ export const createPortalSession = requireAuth(async (req, rc) => {
   return json({ url: session.url });
 });
 
+async function liveSubscription(
+  rc: { env: { DB: D1Database } },
+  userId: string
+): Promise<SubscriptionRow | null> {
+  return rc.env.DB.prepare(
+    `SELECT * FROM subscriptions WHERE user_id = ? AND status IN (${LIVE}) ORDER BY created_at DESC LIMIT 1`
+  )
+    .bind(userId, ...LIVE_SUB_STATUSES)
+    .first<SubscriptionRow>();
+}
+
 export function serializeSubscription(sub: SubscriptionRow) {
   const tier = TIERS[sub.tier as TierKey];
+  const cadence = CADENCES[(sub.cadence ?? 'monthly') as CadenceKey] ?? CADENCES.monthly;
   return {
     id: sub.id,
     tier: sub.tier,
     tierName: tier?.name ?? sub.tier,
     itemsPerMonth: tier?.items ?? null,
     priceMonthly: tier?.price ?? null,
+    cadence: sub.cadence ?? 'monthly',
+    cadenceLabel: cadence.label,
     status: sub.status,
     items: sub.items_json ? (JSON.parse(sub.items_json) as string[]) : [],
     nextBillingDate: sub.next_billing_date,

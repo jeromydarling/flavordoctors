@@ -46,6 +46,12 @@ export function Home() {
                 Get the Monthly Rx Box
               </Link>
             </div>
+            <Link
+              to="/intake-exam"
+              className="mt-6 inline-block rounded-full border-2 border-dashed border-rx/60 px-5 py-2 font-bold text-rx hover:border-rx"
+            >
+              🩺 New patient? Take the 60-second Intake Exam for your personal prescription →
+            </Link>
           </div>
           <div className="hidden justify-center md:flex">
             <div className="prescription-pad w-full max-w-md rotate-2">

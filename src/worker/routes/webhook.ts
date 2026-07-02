@@ -11,7 +11,7 @@ interface StripeEvent {
   data: { object: Record<string, any> };
 }
 
-/** Stripe webhook: order creation + subscription lifecycle. */
+/** Stripe webhook: order creation + subscription lifecycle + loyalty points. */
 export async function stripeWebhook(req: Request, rc: RequestContext): Promise<Response> {
   const payload = await req.text();
   const valid = await verifyStripeSignature(payload, req.headers.get('Stripe-Signature'), rc.env.STRIPE_WEBHOOK_SECRET);
@@ -32,14 +32,28 @@ export async function stripeWebhook(req: Request, rc: RequestContext): Promise<R
           .run();
         break;
       case 'invoice.paid': {
-        const subId = event.data.object.subscription;
-        const periodEnd = event.data.object.lines?.data?.[0]?.period?.end;
+        const invoice = event.data.object;
+        const subId = invoice.subscription;
+        const periodEnd = invoice.lines?.data?.[0]?.period?.end;
         if (subId && periodEnd) {
           await rc.env.DB.prepare(
-            "UPDATE subscriptions SET next_billing_date = ?, status = 'active' WHERE stripe_subscription_id = ?"
+            "UPDATE subscriptions SET next_billing_date = ?, status = 'active' WHERE stripe_subscription_id = ? AND status != 'paused'"
           )
             .bind(new Date(periodEnd * 1000).toISOString(), subId)
             .run();
+        }
+        // Loyalty: 1 point per $ on subscription invoices.
+        if (subId && invoice.amount_paid > 0) {
+          const sub = await rc.env.DB.prepare('SELECT user_id FROM subscriptions WHERE stripe_subscription_id = ?')
+            .bind(subId)
+            .first<{ user_id: string }>();
+          if (sub) {
+            await rc.env.DB.prepare(
+              "INSERT OR IGNORE INTO points_ledger (user_id, delta, reason, ref) VALUES (?, ?, 'invoice', ?)"
+            )
+              .bind(sub.user_id, Math.floor(invoice.amount_paid / 100), invoice.id)
+              .run();
+          }
         }
         break;
       }
@@ -69,10 +83,11 @@ async function createOrderFromSession(rc: RequestContext, session: Record<string
   const orderId = newId('o');
   const email: string | null = session.customer_details?.email ?? session.customer_email ?? null;
   const userId: string | null = session.metadata?.user_id ?? null;
+  const paymentRef: string = session.payment_intent ?? session.id;
 
   // Idempotency: skip if we already recorded this payment.
   const existing = await rc.env.DB.prepare('SELECT id FROM orders WHERE stripe_payment_intent = ?')
-    .bind(session.payment_intent ?? session.id)
+    .bind(paymentRef)
     .first();
   if (existing) return;
 
@@ -90,7 +105,7 @@ async function createOrderFromSession(rc: RequestContext, session: Record<string
   const statements = [
     rc.env.DB.prepare(
       "INSERT INTO orders (id, user_id, email, stripe_payment_intent, total, status) VALUES (?, ?, ?, ?, ?, 'paid')"
-    ).bind(orderId, userId, email, session.payment_intent ?? session.id, session.amount_total ?? 0),
+    ).bind(orderId, userId, email, paymentRef, session.amount_total ?? 0),
     ...cart
       .filter((c) => byId.has(c.p))
       .map((c) =>
@@ -98,7 +113,21 @@ async function createOrderFromSession(rc: RequestContext, session: Record<string
           'INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase) VALUES (?, ?, ?, ?)'
         ).bind(orderId, c.p, c.q, byId.get(c.p)!.price)
       ),
+    // Decrement limited-drop stock.
+    ...cart
+      .filter((c) => byId.get(c.p)?.is_drop === 1 && byId.get(c.p)?.drop_stock !== null)
+      .map((c) =>
+        rc.env.DB.prepare('UPDATE products SET drop_stock = MAX(0, drop_stock - ?) WHERE id = ?').bind(c.q, c.p)
+      ),
   ];
+  // Loyalty: 1 point per $ spent.
+  if (userId && (session.amount_total ?? 0) > 0) {
+    statements.push(
+      rc.env.DB.prepare(
+        "INSERT OR IGNORE INTO points_ledger (user_id, delta, reason, ref) VALUES (?, ?, 'order', ?)"
+      ).bind(userId, Math.floor((session.amount_total ?? 0) / 100), paymentRef)
+    );
+  }
   await rc.env.DB.batch(statements);
 
   if (email) {
@@ -113,6 +142,7 @@ async function createSubscriptionFromSession(rc: RequestContext, session: Record
   const stripeSubId: string | null = session.subscription ?? null;
   const tierKey = (session.metadata?.tier ?? 'starter') as TierKey;
   const tier = TIERS[tierKey] ?? TIERS.starter;
+  const cadence: string = session.metadata?.cadence === 'bimonthly' ? 'bimonthly' : 'monthly';
   const userId: string | null = session.metadata?.user_id ?? null;
   if (!stripeSubId || !userId) return;
 
@@ -133,27 +163,39 @@ async function createSubscriptionFromSession(rc: RequestContext, session: Record
   // Default box = best-sellers until the user customizes.
   const items = await defaultBoxItems(rc, tier.items);
   await rc.env.DB.prepare(
-    "INSERT INTO subscriptions (id, user_id, stripe_subscription_id, tier, status, items_json, next_billing_date) VALUES (?, ?, ?, ?, 'active', ?, ?)"
+    "INSERT INTO subscriptions (id, user_id, stripe_subscription_id, tier, status, cadence, items_json, next_billing_date) VALUES (?, ?, ?, ?, 'active', ?, ?, ?)"
   )
-    .bind(newId('s'), userId, stripeSubId, tierKey, JSON.stringify(items), nextBilling)
+    .bind(newId('s'), userId, stripeSubId, tierKey, cadence, JSON.stringify(items), nextBilling)
     .run();
+
+  // Loyalty points for the first subscription payment.
+  if ((session.amount_total ?? 0) > 0) {
+    await rc.env.DB.prepare(
+      "INSERT OR IGNORE INTO points_ledger (user_id, delta, reason, ref) VALUES (?, ?, 'order', ?)"
+    )
+      .bind(userId, Math.floor((session.amount_total ?? 0) / 100), session.id)
+      .run();
+  }
 
   const email: string | null = session.customer_details?.email ?? null;
   if (email) {
     rc.ctx.waitUntil(
-      sendEmail(rc.env, email, `Welcome to the ${tier.name} Monthly Rx Box`, subscriptionConfirmationEmail(tier.name, tier.items))
+      sendEmail(rc.env, email, `Welcome to the ${tier.name} Rx Box`, subscriptionConfirmationEmail(tier.name, tier.items))
     );
   }
 }
 
 async function handleSubscriptionUpdated(rc: RequestContext, sub: Record<string, any>): Promise<void> {
-  const status = ['active', 'trialing'].includes(sub.status)
-    ? 'active'
-    : sub.status === 'past_due'
-      ? 'past_due'
-      : ['canceled', 'unpaid', 'incomplete_expired'].includes(sub.status)
-        ? 'canceled'
-        : 'incomplete';
+  const paused = !!sub.pause_collection;
+  const status = paused
+    ? 'paused'
+    : ['active', 'trialing'].includes(sub.status)
+      ? 'active'
+      : sub.status === 'past_due'
+        ? 'past_due'
+        : ['canceled', 'unpaid', 'incomplete_expired'].includes(sub.status)
+          ? 'canceled'
+          : 'incomplete';
   const nextBilling = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
   await rc.env.DB.prepare(
     'UPDATE subscriptions SET status = ?, next_billing_date = COALESCE(?, next_billing_date) WHERE stripe_subscription_id = ?'

@@ -13,6 +13,9 @@ interface EditState {
   price: string; // dollars, as typed
   isActive: boolean;
   isBestseller: boolean;
+  isDrop: boolean;
+  dropStartsAt: string; // datetime-local value
+  dropStock: string;
 }
 
 const EMPTY: EditState = {
@@ -23,7 +26,19 @@ const EMPTY: EditState = {
   price: '',
   isActive: true,
   isBestseller: false,
+  isDrop: false,
+  dropStartsAt: '',
+  dropStock: '',
 };
+
+/** ISO → value usable by <input type="datetime-local"> (local time, minute precision). */
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export function AdminProducts() {
   const [products, setProducts] = useState<Product[] | null>(null);
@@ -48,6 +63,9 @@ export function AdminProducts() {
       price: (p.price / 100).toFixed(2),
       isActive: p.isActive !== false,
       isBestseller: p.isBestseller,
+      isDrop: p.isDrop === true,
+      dropStartsAt: toLocalInput(p.dropStartsAt),
+      dropStock: p.dropStock === null || p.dropStock === undefined ? '' : String(p.dropStock),
     });
 
   const submit = async (e: FormEvent) => {
@@ -62,6 +80,9 @@ export function AdminProducts() {
       price: Math.round(parseFloat(editing.price) * 100),
       isActive: editing.isActive,
       isBestseller: editing.isBestseller,
+      isDrop: editing.isDrop,
+      dropStartsAt: editing.isDrop && editing.dropStartsAt ? new Date(editing.dropStartsAt).toISOString() : null,
+      dropStock: editing.isDrop && editing.dropStock !== '' ? parseInt(editing.dropStock, 10) : null,
     };
     try {
       if (editing.id) await api.put(`/api/admin/products/${editing.id}`, body);
@@ -140,7 +161,36 @@ export function AdminProducts() {
               <input type="checkbox" className="h-5 w-5" checked={editing.isBestseller} onChange={(e) => setEditing({ ...editing, isBestseller: e.target.checked })} />
               Best Seller
             </label>
+            <label className="flex items-center gap-2 font-bold">
+              <input type="checkbox" className="h-5 w-5" checked={editing.isDrop} onChange={(e) => setEditing({ ...editing, isDrop: e.target.checked })} />
+              Clinical Trial (limited drop)
+            </label>
           </div>
+          {editing.isDrop && (
+            <div className="flex flex-wrap items-end gap-6 rounded-lg border border-gold/40 p-4">
+              <div>
+                <label className="mb-1 block text-sm font-bold">Public enrollment opens (subscribers get 48h early)</label>
+                <input
+                  className="input"
+                  type="datetime-local"
+                  required
+                  value={editing.dropStartsAt}
+                  onChange={(e) => setEditing({ ...editing, dropStartsAt: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-bold">Stock (blank = unlimited)</label>
+                <input
+                  className="input w-32"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={editing.dropStock}
+                  onChange={(e) => setEditing({ ...editing, dropStock: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
           <div className="flex gap-3">
             <button type="submit" className="btn-rx !py-2 !text-base" disabled={busy}>
               {busy ? 'Saving…' : 'Save'}

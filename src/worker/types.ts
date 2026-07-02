@@ -31,6 +31,9 @@ export interface ProductRow {
   image_r2_key: string | null;
   is_active: number;
   is_bestseller: number;
+  is_drop: number;
+  drop_starts_at: string | null;
+  drop_stock: number | null;
   created_at: string;
 }
 
@@ -50,9 +53,19 @@ export interface SubscriptionRow {
   stripe_subscription_id: string | null;
   tier: string;
   status: string;
+  cadence: string;
   items_json: string | null;
   next_billing_date: string | null;
   created_at: string;
+}
+
+export interface FlavorProfileRow {
+  user_id: string;
+  answers_json: string;
+  condition: string | null;
+  diagnosis: string | null;
+  prescribed_json: string | null;
+  updated_at: string;
 }
 
 export const TIERS = {
@@ -63,7 +76,32 @@ export const TIERS = {
 
 export type TierKey = keyof typeof TIERS;
 
+export const CADENCES = {
+  monthly: { label: 'Monthly', intervalCount: 1 },
+  bimonthly: { label: 'Every 2 months', intervalCount: 2 },
+} as const;
+
+export type CadenceKey = keyof typeof CADENCES;
+
+/** Subscription statuses that count as "has a live box". */
+export const LIVE_SUB_STATUSES = ['active', 'past_due', 'paused'];
+
+export const LOYALTY_TIERS = [
+  { key: 'patient', name: 'Patient', min: 0 },
+  { key: 'resident', name: 'Resident', min: 150 },
+  { key: 'attending', name: 'Attending', min: 400 },
+  { key: 'chief', name: 'Chief of Medicine', min: 1000 },
+] as const;
+
 export const COLLECTIONS = ['mayo', 'butter', 'burger-sauce', 'toppers', 'seasoning'] as const;
+
+// Pricing plays (cents)
+export const FREE_SHIPPING_THRESHOLD = 4500;
+export const SHIPPING_FEE = 695;
+export const BUNDLE_MIN_QTY = 3;
+export const BUNDLE_COUPON = { id: 'FD_ANY3_15', percentOff: 15, name: 'Any 3+ items — 15% off' };
+export const FIRST_BOX_COUPON = { id: 'FD_FIRST_BOX_20', percentOff: 20, name: 'First Rx Box — 20% off' };
+export const DROP_EARLY_ACCESS_MS = 48 * 3600 * 1000;
 
 export interface AuthUser {
   id: string;

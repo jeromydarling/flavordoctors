@@ -9,7 +9,48 @@ export interface Product {
   imageUrl: string | null;
   isBestseller: boolean;
   isActive?: boolean;
+  isDrop?: boolean;
+  dropStartsAt?: string | null;
+  dropStock?: number | null;
 }
+
+export interface Drop {
+  product: Product;
+  state: 'upcoming' | 'early-access' | 'live' | 'sold-out';
+  startsAt: string | null;
+  earlyAccessAt: string | null;
+  stock: number | null;
+  canBuy: boolean;
+}
+
+export interface QuizResult {
+  condition: string;
+  diagnosis: string;
+  prescription: Product[];
+  saved: boolean;
+}
+
+export interface FlavorProfile {
+  condition: string | null;
+  diagnosis: string | null;
+  updatedAt: string;
+  prescription: Product[];
+}
+
+export interface LoyaltyInfo {
+  points: number;
+  tier: { key: string; name: string };
+  nextTier: { key: string; name: string; pointsNeeded: number } | null;
+}
+
+export const CADENCES = [
+  { key: 'monthly', label: 'Monthly' },
+  { key: 'bimonthly', label: 'Every 2 months' },
+] as const;
+
+export const FREE_SHIPPING_THRESHOLD = 4500;
+export const BUNDLE_MIN_QTY = 3;
+export const BUNDLE_PERCENT = 15;
 
 export interface User {
   id: string;
@@ -40,6 +81,8 @@ export interface Subscription {
   tierName: string;
   itemsPerMonth: number | null;
   priceMonthly: number | null;
+  cadence: string;
+  cadenceLabel: string;
   status: string;
   items: string[];
   nextBillingDate: string | null;

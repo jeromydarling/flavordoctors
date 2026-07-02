@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Logo, LogoMark } from './Logo';
+import { Pharmacist } from './Pharmacist';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { formatPrice } from '../lib/types';
+import { formatPrice, FREE_SHIPPING_THRESHOLD, BUNDLE_MIN_QTY, BUNDLE_PERCENT } from '../lib/types';
 import { api } from '../lib/api';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -21,7 +22,10 @@ export function Layout() {
         The Menu
       </NavLink>
       <NavLink to="/subscribe" className={navLinkClass} onClick={() => setMobileOpen(false)}>
-        Monthly Rx Box
+        Rx Box
+      </NavLink>
+      <NavLink to="/trials" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+        Clinical Trials
       </NavLink>
       <NavLink to="/about" className={navLinkClass} onClick={() => setMobileOpen(false)}>
         About
@@ -108,6 +112,7 @@ export function Layout() {
       </main>
 
       <CartDrawer />
+      <Pharmacist />
 
       <footer className="border-t border-navy-lighter bg-navy-light/50">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 md:grid-cols-3">
@@ -206,6 +211,24 @@ function CartDrawer() {
         </div>
         <div className="border-t border-navy-lighter p-5">
           {error && <p className="mb-3 rounded bg-red-500/20 p-2 text-sm text-red-300">{error}</p>}
+          {cart.lines.length > 0 && (
+            <div className="mb-3 space-y-1 text-sm">
+              {cart.count >= BUNDLE_MIN_QTY ? (
+                <p className="font-bold text-rx">✓ Bundle bonus: {BUNDLE_PERCENT}% off applied at checkout</p>
+              ) : (
+                <p className="text-medical/60">
+                  Add {BUNDLE_MIN_QTY - cart.count} more item{BUNDLE_MIN_QTY - cart.count > 1 ? 's' : ''} for {BUNDLE_PERCENT}% off
+                </p>
+              )}
+              {cart.total >= FREE_SHIPPING_THRESHOLD ? (
+                <p className="font-bold text-rx">✓ Free shipping unlocked</p>
+              ) : (
+                <p className="text-medical/60">
+                  {formatPrice(FREE_SHIPPING_THRESHOLD - cart.total)} away from free shipping
+                </p>
+              )}
+            </div>
+          )}
           <div className="mb-4 flex justify-between text-xl font-bold">
             <span>Total</span>
             <span className="text-gold">{formatPrice(cart.total)}</span>

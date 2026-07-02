@@ -5,6 +5,8 @@ import { Home } from './pages/Home';
 import { Menu } from './pages/Menu';
 import { ProductPage } from './pages/Product';
 import { Subscribe } from './pages/Subscribe';
+import { IntakeExam } from './pages/IntakeExam';
+import { Trials } from './pages/Trials';
 import { About } from './pages/About';
 import { Faq } from './pages/Faq';
 import { Login } from './pages/Login';
@@ -23,6 +25,8 @@ export default function App() {
         <Route path="/menu" element={<Menu />} />
         <Route path="/product/:slug" element={<ProductPage />} />
         <Route path="/subscribe" element={<Subscribe />} />
+        <Route path="/intake-exam" element={<IntakeExam />} />
+        <Route path="/trials" element={<Trials />} />
         <Route path="/about" element={<About />} />
         <Route path="/faq" element={<Faq />} />
         <Route path="/login" element={<Login />} />

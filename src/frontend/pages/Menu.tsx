@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Product } from '../lib/types';
 import { COLLECTIONS } from '../lib/types';
@@ -23,6 +23,13 @@ export function Menu() {
     <div className="mx-auto max-w-7xl px-4 py-12">
       <h1 className="text-5xl font-black md:text-6xl">The Menu</h1>
       <p className="mt-3 text-xl text-medical/70">Every item is a prescription. No insurance required.</p>
+      <div className="mt-5 flex flex-wrap gap-3 text-sm font-bold">
+        <span className="rounded-full bg-rx/10 px-4 py-2 text-rx">🚚 Free shipping over $45</span>
+        <span className="rounded-full bg-gold/10 px-4 py-2 text-gold">💊 Any 3+ items: 15% off automatically</span>
+        <Link to="/intake-exam" className="rounded-full bg-navy-light px-4 py-2 text-medical/80 hover:text-rx">
+          🩺 Not sure? Take the Intake Exam →
+        </Link>
+      </div>
 
       <div className="mt-8 flex flex-wrap gap-3">
         <FilterChip label="All Treatments" active={!active} onClick={() => setSearchParams({})} />

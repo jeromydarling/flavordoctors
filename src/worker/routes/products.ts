@@ -14,6 +14,9 @@ export function publicProduct(p: ProductRow) {
     price: p.price,
     imageUrl: p.image_r2_key ? `/images/${p.image_r2_key}` : null,
     isBestseller: p.is_bestseller === 1,
+    isDrop: p.is_drop === 1,
+    dropStartsAt: p.drop_starts_at,
+    dropStock: p.drop_stock,
   };
 }
 
@@ -25,10 +28,10 @@ export async function listProducts(req: Request, rc: RequestContext): Promise<Re
       return errorResponse('Unknown collection', 404);
     }
     stmt = rc.env.DB.prepare(
-      'SELECT * FROM products WHERE is_active = 1 AND collection = ? ORDER BY name'
+      'SELECT * FROM products WHERE is_active = 1 AND is_drop = 0 AND collection = ? ORDER BY name'
     ).bind(collection);
   } else {
-    stmt = rc.env.DB.prepare('SELECT * FROM products WHERE is_active = 1 ORDER BY collection, name');
+    stmt = rc.env.DB.prepare('SELECT * FROM products WHERE is_active = 1 AND is_drop = 0 ORDER BY collection, name');
   }
   const { results } = await stmt.all<ProductRow>();
   return json({ products: results.map(publicProduct) });
@@ -57,7 +60,7 @@ export async function getProduct(_req: Request, rc: RequestContext): Promise<Res
 /** Default box contents: best-sellers first, then cheapest actives as filler. */
 export async function defaultBoxItems(rc: RequestContext, count: number): Promise<string[]> {
   const { results } = await rc.env.DB.prepare(
-    'SELECT id FROM products WHERE is_active = 1 ORDER BY is_bestseller DESC, price ASC LIMIT ?'
+    'SELECT id FROM products WHERE is_active = 1 AND is_drop = 0 ORDER BY is_bestseller DESC, price ASC LIMIT ?'
   )
     .bind(count)
     .all<{ id: string }>();

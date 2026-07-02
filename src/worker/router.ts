@@ -1,5 +1,6 @@
 import type { Env, RequestContext } from './types';
 import { errorResponse } from './lib/util';
+import { isStripeError } from './lib/stripe';
 
 export type Handler = (req: Request, rc: RequestContext) => Promise<Response> | Response;
 
@@ -41,6 +42,9 @@ export class Router {
         return await route.handler(req, { env, ctx, params, user: null });
       } catch (err) {
         console.error(`Unhandled error on ${req.method} ${url.pathname}:`, err);
+        if (isStripeError(err)) {
+          return errorResponse(`Payment provider error: ${err.message}`, 502);
+        }
         return errorResponse('Internal server error', 500);
       }
     }

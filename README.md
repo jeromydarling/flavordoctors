@@ -38,9 +38,22 @@ Subscription-based e-commerce for a small-batch sauce & seasoning brand, built e
 | `/login` | Sign in / register |
 | `/account` | Order history, subscription status, Stripe billing portal |
 | `/account/customize` | Pick exactly N products for the monthly box (default = best-sellers) |
-| `/admin/products` | Product CRUD + AI description generation (admin) |
+| `/intake-exam` | The Intake Exam — flavor-diagnosis quiz → AI diagnosis + prescribed products (saved to My Chart when signed in) |
+| `/trials` | Clinical Trials — limited flavor drops with waitlist; Rx Box subscribers get 48h early access |
+| `/admin/products` | Product CRUD + AI description generation + Clinical Trial drop scheduling (admin) |
 | `/admin/orders` | Order management (admin) |
 | `/admin/image-gen` | Flux image generation per SKU → publishes to R2 `products/{slug}/hero.png` (admin) |
+
+## Growth & retention features
+
+- **Skip / Pause / Resume** — one-click from My Chart (`pause_collection` on Stripe); paused status synced via webhook.
+- **Cadence** — monthly or every-2-months at every tier (inline `interval_count`), chosen at signup.
+- **Pricing plays** — first Rx Box 20% off (auto-coupon, new subscribers only), any 3+ items 15% off automatically, free shipping ≥ $45 ($6.95 flat below); coupons are created lazily and idempotently via the Stripe API.
+- **Board Certification loyalty** — 1 point per $1 (awarded idempotently from webhooks); tiers: Patient → Resident → Attending → Chief of Medicine, shown in My Chart.
+- **Flavor Health Record** — 1-click star ratings on past order items.
+- **The Pharmacist** — floating AI consult chat grounded in the live catalog (Workers AI), with add-to-cart suggestions.
+- **Clinical Trials** — admin-scheduled limited drops with stock caps, guest waitlists, subscriber early-access checkout gating, and stock decremented on paid webhooks.
+- **Nightly cron** (16:00 UTC) — refill reminders (orders 30-45 days old), win-back emails for canceled subscribers, drop-open waitlist notifications; all deduped via `sent_emails` and no-ops without `RESEND_API_KEY`.
 
 Admin access is granted automatically to emails listed in the `ADMIN_EMAILS` var in `wrangler.toml`.
 
@@ -198,9 +211,13 @@ require `is_admin`, granted via the `ADMIN_EMAILS` allowlist.
 ```
 POST /api/auth/register | login | logout      GET /api/auth/me
 GET  /api/products[?collection=]              GET /api/products/:slug
+POST /api/quiz                                POST /api/pharmacist
+GET  /api/drops                               POST /api/drops/:id/waitlist
 POST /api/checkout                            POST /api/subscribe
 GET  /api/account/orders                      GET /api/account/subscription
 PUT  /api/account/subscription/items          POST /api/account/portal
+POST /api/account/subscription/skip | pause | resume
+GET  /api/account/profile | loyalty | ratings POST /api/products/:id/rate
 GET|POST /api/admin/products                  PUT|DELETE /api/admin/products/:id
 POST /api/admin/products/:id/generate-description
 POST /api/admin/products/:id/generate-image

@@ -23,6 +23,10 @@ bucket_name = "flavordoctors-product-images"
 [ai]
 binding = "AI"
 
+# Nightly at 16:00 UTC: refill reminders, win-back emails, drop notifications.
+[triggers]
+crons = ["0 16 * * *"]
+
 [vars]
 # Comma-separated list of emails that are granted admin on register/login.
 ADMIN_EMAILS = "jeromy.darling@gmail.com"

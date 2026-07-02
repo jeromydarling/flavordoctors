@@ -16,6 +16,22 @@ export function containerFor(collection: string): string {
   return CONTAINER_BY_COLLECTION[collection] ?? 'glass jar';
 }
 
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+/** General chat completion against the text model. */
+export async function runChat(env: Env, messages: ChatMessage[], maxTokens = 512): Promise<string> {
+  const result = (await env.AI.run(TEXT_MODEL as Parameters<Ai['run']>[0], {
+    messages,
+    max_tokens: maxTokens,
+  })) as { response?: string };
+  const text = result.response?.trim();
+  if (!text) throw new Error('AI returned an empty response');
+  return text;
+}
+
 /** Generate a prescription-style product description with Workers AI. */
 export async function generateDescription(env: Env, product: ProductRow): Promise<string> {
   const prompt = `You are the copywriter for "Flavor Doctors", a premium small-batch sauce and seasoning brand with a playful medical/prescription theme.

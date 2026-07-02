@@ -62,6 +62,32 @@ export function subscriptionConfirmationEmail(tierName: string, itemsPerMonth: n
     <p>Visit your account to customize your box; otherwise, we'll prescribe our best-sellers.</p>`);
 }
 
+export function refillReminderEmail(siteUrl: string): string {
+  return wrapper(`
+    <h2 style="margin-top:0;">Your prescription is running low 💊</h2>
+    <p>By our chart, it's been about a month since your last Flavor Doctors order — dangerously close to
+    a flavor relapse.</p>
+    <p><a href="${siteUrl}/menu" style="color:#27AE60;font-weight:bold;">Refill your prescription →</a></p>
+    <p style="font-size:13px;color:#555;">Pro tip: 3+ items save 15% automatically, and orders over $45 ship free.</p>`);
+}
+
+export function winBackEmail(siteUrl: string): string {
+  return wrapper(`
+    <h2 style="margin-top:0;">The doctor misses you 🩺</h2>
+    <p>Your Monthly Rx Box lapsed, and frankly, we're worried about your flavor levels.</p>
+    <p>New treatments have hit the pharmacy since you left — come see what's new, or restart your box
+    in under a minute.</p>
+    <p><a href="${siteUrl}/subscribe" style="color:#27AE60;font-weight:bold;">Renew my prescription →</a></p>`);
+}
+
+export function dropOpenEmail(productName: string, slug: string, siteUrl: string): string {
+  return wrapper(`
+    <h2 style="margin-top:0;">Clinical Trial now enrolling 🧪</h2>
+    <p><strong>${escapeHtml(productName)}</strong> is now available — you're on the trial waitlist, so
+    you're hearing it first. Batches are limited and don't get restocked.</p>
+    <p><a href="${siteUrl}/product/${slug}" style="color:#27AE60;font-weight:bold;">Claim your dose →</a></p>`);
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

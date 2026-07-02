@@ -7,9 +7,16 @@ import {
   createSubscription,
   getMySubscription,
   updateBoxItems,
+  skipNextBox,
+  pauseSubscription,
+  resumeSubscription,
   createPortalSession,
 } from './routes/subscriptions';
 import { listMyOrders } from './routes/account';
+import { submitQuiz, getMyProfile } from './routes/quiz';
+import { getMyLoyalty, rateProduct, getMyRatings } from './routes/loyalty';
+import { listDrops, joinWaitlist } from './routes/drops';
+import { pharmacistChat } from './routes/pharmacist';
 import {
   adminListProducts,
   adminCreateProduct,
@@ -22,6 +29,7 @@ import {
 } from './routes/admin';
 import { stripeWebhook } from './routes/webhook';
 import { serveImage } from './routes/images';
+import { runScheduled } from './scheduled';
 import { errorResponse } from './lib/util';
 
 const router = new Router()
@@ -33,13 +41,27 @@ const router = new Router()
   // Catalog
   .get('/api/products', listProducts)
   .get('/api/products/:slug', getProduct)
+  // Intake Exam + Pharmacist
+  .post('/api/quiz', submitQuiz)
+  .post('/api/pharmacist', pharmacistChat)
+  // Clinical Trials (limited drops)
+  .get('/api/drops', listDrops)
+  .post('/api/drops/:id/waitlist', joinWaitlist)
   // Checkout & subscriptions
   .post('/api/checkout', createCheckout)
   .post('/api/subscribe', createSubscription)
   .get('/api/account/subscription', getMySubscription)
   .put('/api/account/subscription/items', updateBoxItems)
+  .post('/api/account/subscription/skip', skipNextBox)
+  .post('/api/account/subscription/pause', pauseSubscription)
+  .post('/api/account/subscription/resume', resumeSubscription)
   .post('/api/account/portal', createPortalSession)
   .get('/api/account/orders', listMyOrders)
+  // My Chart extras
+  .get('/api/account/profile', getMyProfile)
+  .get('/api/account/loyalty', getMyLoyalty)
+  .get('/api/account/ratings', getMyRatings)
+  .post('/api/products/:id/rate', rateProduct)
   // Admin
   .get('/api/admin/products', adminListProducts)
   .post('/api/admin/products', adminCreateProduct)
@@ -64,5 +86,9 @@ export default {
     }
     // Everything else: the React SPA served from static assets.
     return env.ASSETS.fetch(req);
+  },
+
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runScheduled(env));
   },
 } satisfies ExportedHandler<Env>;
