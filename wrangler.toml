@@ -1,0 +1,36 @@
+# Flavor Doctors — Cloudflare Workers configuration
+name = "flavordoctors"
+main = "src/worker/index.ts"
+compatibility_date = "2026-06-01"
+
+# React SPA served as static assets; API + image routes always hit the Worker.
+[assets]
+directory = "./dist/client"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/images/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "flavordoctors-db"
+database_id = "bed2572c-6958-4c16-97a0-f3d500b52fd3"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "PRODUCT_IMAGES"
+bucket_name = "flavordoctors-product-images"
+
+[ai]
+binding = "AI"
+
+[vars]
+# Comma-separated list of emails that are granted admin on register/login.
+ADMIN_EMAILS = "jeromy.darling@gmail.com"
+# Optional "from" address for transactional email (used with RESEND_API_KEY secret).
+EMAIL_FROM = "Flavor Doctors <orders@flavordoctors.example>"
+
+# Secrets (set via `wrangler secret put <NAME>`):
+#   STRIPE_SECRET_KEY      — Stripe API secret key (sk_...)
+#   STRIPE_WEBHOOK_SECRET  — Stripe webhook signing secret (whsec_...)
+#   JWT_SECRET             — random string used to sign auth tokens
+#   RESEND_API_KEY         — (optional) Resend API key for confirmation emails

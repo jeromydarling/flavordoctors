@@ -1,0 +1,35 @@
+{
+  "name": "flavordoctors",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Flavor Doctors — subscription-based e-commerce for small-batch sauces and seasonings, on Cloudflare Workers",
+  "scripts": {
+    "dev": "npm run build && wrangler dev",
+    "dev:frontend": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
+    "db:migrate": "wrangler d1 migrations apply flavordoctors-db --remote",
+    "db:migrate:local": "wrangler d1 migrations apply flavordoctors-db --local",
+    "db:seed": "wrangler d1 execute flavordoctors-db --remote --file=./seed.sql",
+    "db:seed:local": "wrangler d1 execute flavordoctors-db --local --file=./seed.sql",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250620.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "wrangler": "^4.0.0"
+  }
+}

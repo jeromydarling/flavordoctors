@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-navy text-medical font-body antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-heading;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-rx {
+    @apply btn bg-rx text-navy hover:bg-rx-dark;
+  }
+  .btn-gold {
+    @apply btn bg-gold text-navy hover:bg-gold-dark;
+  }
+  .btn-outline {
+    @apply btn border-2 border-medical/40 text-medical hover:border-rx hover:text-rx;
+  }
+  .input {
+    @apply w-full rounded-lg border-2 border-navy-lighter bg-navy-light px-4 py-3 text-lg text-medical placeholder:text-medical/40 focus:border-rx focus:outline-none;
+  }
+  .rx-card {
+    @apply rounded-xl border-2 border-navy-lighter bg-navy-light p-6;
+  }
+  /* Prescription-pad panel: light background, serif, dashed rule */
+  .prescription-pad {
+    @apply rounded-xl bg-medical text-navy p-6 md:p-8 border-t-8 border-rx shadow-xl;
+  }
+}
