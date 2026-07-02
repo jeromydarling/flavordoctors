@@ -29,6 +29,12 @@ export async function sendEmail(env: Env, to: string, subject: string, html: str
       console.log(`Email sent via Email Service to=${to} id=${result.messageId ?? 'n/a'}`);
       return;
     } catch (err) {
+      // Respect the platform suppression list (hard bounces/complaints):
+      // do NOT re-send suppressed recipients through the fallback provider.
+      if ((err as { code?: string }).code === 'E_RECIPIENT_SUPPRESSED') {
+        console.log(`Email suppressed by Email Service (bounce/complaint history): to=${to}`);
+        return;
+      }
       console.error('Email Service send failed, trying fallback:', err);
     }
   }
