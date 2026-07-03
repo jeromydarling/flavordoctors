@@ -30,6 +30,7 @@ import {
 import { stripeWebhook } from './routes/webhook';
 import { serveImage } from './routes/images';
 import { runScheduled } from './scheduled';
+import { withPageMeta, robotsTxt, sitemapXml, llmsTxt } from './seo';
 import { errorResponse } from './lib/util';
 
 const router = new Router()
@@ -84,8 +85,16 @@ export default {
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/images/')) {
       return errorResponse('Not found', 404);
     }
-    // Everything else: the React SPA served from static assets.
-    return env.ASSETS.fetch(req);
+    // SEO surfaces
+    if (req.method === 'GET') {
+      if (url.pathname === '/robots.txt') return robotsTxt(url.origin);
+      if (url.pathname === '/sitemap.xml') return sitemapXml(env, url.origin);
+      if (url.pathname === '/llms.txt') return llmsTxt(env, url.origin);
+    }
+    // Everything else: the React SPA from static assets, with per-route
+    // titles/canonical/OG/JSON-LD injected into HTML responses at the edge.
+    const assetResponse = await env.ASSETS.fetch(req);
+    return withPageMeta(req, env, assetResponse);
   },
 
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {

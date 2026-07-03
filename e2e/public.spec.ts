@@ -25,7 +25,7 @@ test.describe('Public surface', () => {
     const allCards = page.locator('a[href^="/product/"]');
     expect(await allCards.count()).toBeGreaterThanOrEqual(34);
     // Filter to butter (7 SKUs)
-    await page.getByRole('button', { name: 'Doctored Butter' }).click();
+    await page.getByRole('button', { name: 'Doctored Ghee Butter' }).click();
     await expect(page.getByRole('heading', { name: 'Cowboy Compound' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Ranch Rx' })).not.toBeVisible();
     expect(page.url()).toContain('collection=butter');

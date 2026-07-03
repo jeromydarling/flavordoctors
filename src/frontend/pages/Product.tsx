@@ -18,7 +18,10 @@ export function ProductPage() {
     setNotFound(false);
     api
       .get<{ product: Product }>(`/api/products/${slug}`)
-      .then((d) => setProduct(d.product))
+      .then((d) => {
+        setProduct(d.product);
+        document.title = `${d.product.name} | Flavor Doctors`;
+      })
       .catch(() => setNotFound(true));
   }, [slug]);
 

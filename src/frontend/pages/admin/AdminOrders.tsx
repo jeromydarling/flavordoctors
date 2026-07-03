@@ -41,9 +41,9 @@ export function AdminOrders() {
             <div key={o.id} className="rx-card">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="font-mono text-sm text-medical/50">{o.id}</p>
+                  <p className="font-mono text-sm text-medical/60">{o.id}</p>
                   <p className="font-bold">{o.email ?? 'No email on file'}</p>
-                  <p className="text-sm text-medical/50">{new Date(o.createdAt).toLocaleString()}</p>
+                  <p className="text-sm text-medical/60">{new Date(o.createdAt).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-xl font-extrabold text-gold">{formatPrice(o.total)}</span>

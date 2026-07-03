@@ -56,7 +56,7 @@ export function Layout() {
                   My Chart
                 </Link>
                 <button
-                  className="text-sm text-medical/50 hover:text-medical"
+                  className="text-sm text-medical/60 hover:text-medical"
                   onClick={async () => {
                     await logout();
                     navigate('/');
@@ -123,14 +123,14 @@ export function Layout() {
             </p>
           </div>
           <div className="text-sm text-medical/70">
-            <h4 className="mb-3 text-lg font-bold text-medical">Clinic Hours</h4>
+            <h2 className="mb-3 text-lg font-bold text-medical">Clinic Hours</h2>
             <p>Online 24/7 — the flavor pharmacy never closes.</p>
             <p className="mt-2">
               Questions? Read the <Link to="/faq" className="text-rx underline">Patient Information Leaflet</Link>.
             </p>
           </div>
           <div className="text-sm text-medical/70">
-            <h4 className="mb-3 text-lg font-bold text-medical">Warning Label</h4>
+            <h2 className="mb-3 text-lg font-bold text-medical">Warning Label</h2>
             <p>Side effects may include eating this on everything. © {new Date().getFullYear()} Flavor Doctors.</p>
           </div>
         </div>
@@ -201,7 +201,7 @@ function CartDrawer() {
                       +
                     </button>
                   </div>
-                  <button className="text-medical/40 hover:text-red-400" onClick={() => cart.remove(l.product.id)} aria-label={`Remove ${l.product.name}`}>
+                  <button className="text-medical/60 hover:text-red-400" onClick={() => cart.remove(l.product.id)} aria-label={`Remove ${l.product.name}`}>
                     🗑
                   </button>
                 </li>

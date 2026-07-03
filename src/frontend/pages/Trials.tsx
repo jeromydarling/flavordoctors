@@ -11,7 +11,7 @@ const STATE_BADGES: Record<Drop['state'], { label: string; cls: string }> = {
   upcoming: { label: 'Enrolling soon', cls: 'bg-gold/20 text-gold' },
   'early-access': { label: 'Subscriber early access', cls: 'bg-rx/20 text-rx' },
   live: { label: 'Now enrolling', cls: 'bg-rx text-navy' },
-  'sold-out': { label: 'Trial complete', cls: 'bg-medical/10 text-medical/50' },
+  'sold-out': { label: 'Trial complete', cls: 'bg-medical/10 text-medical/60' },
 };
 
 export function Trials() {
@@ -36,7 +36,7 @@ export function Trials() {
       ) : drops.length === 0 ? (
         <div className="mt-12 rounded-xl border-2 border-dashed border-navy-lighter p-12 text-center">
           <p className="text-2xl font-bold text-medical/60">No trials currently enrolling.</p>
-          <p className="mt-2 text-medical/50">
+          <p className="mt-2 text-medical/60">
             New experimental compounds drop quarterly.{' '}
             <Link to="/subscribe" className="text-rx underline">Subscribers hear first</Link>.
           </p>
@@ -63,7 +63,7 @@ export function Trials() {
                     )}
                   </div>
                   {d.startsAt && (d.state === 'upcoming' || d.state === 'early-access') && (
-                    <p className="mt-2 text-sm text-medical/50">
+                    <p className="mt-2 text-sm text-medical/60">
                       Public enrollment: {new Date(d.startsAt).toLocaleString()}
                       {d.earlyAccessAt && (
                         <> · Subscribers: {new Date(d.earlyAccessAt).toLocaleString()}</>

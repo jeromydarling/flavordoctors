@@ -9,7 +9,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'How does the Monthly Rx Box work?',
-    a: 'Choose a tier — Starter Rx (4 items, $39/mo), Standard Rx (6 items, $54/mo), or Full Prescription (8 items, $69/mo). After checkout you can customize which products arrive each month; if you don’t, we send our best-sellers. Billing is handled by Stripe and renews monthly.',
+    a: 'Choose a tier — Starter Rx (4 items, $39/box), Standard Rx (6 items, $54/box), or Full Prescription (8 items, $69/box) — and a cadence: monthly, every 2 months, or annual prepay (12 boxes billed once, you pay for 10). After checkout you can customize which products arrive each box; if you don’t, we send our best-sellers. Billing is handled by Stripe.',
   },
   {
     q: 'Can I change or cancel my subscription?',
@@ -17,7 +17,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'How is it stored?',
-    a: 'Mayos, sauces, and toppers: refrigerate after opening. Butters: keep refrigerated or frozen. Seasonings: store in a cool, dry pantry. Keep away from roommates.',
+    a: 'Everything ships shelf-stable — no ice packs, no melted disappointment. Mayos, sauces, and toppers: refrigerate after opening. Ghee butters: shelf-stable sealed; a cool pantry is fine, refrigerate after opening for peak freshness. Seasonings: cool, dry pantry. Keep away from roommates.',
   },
   {
     q: 'Known side effects',
@@ -29,7 +29,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'Shipping',
-    a: 'Orders ship in 2–3 business days in insulated packaging. Subscription boxes ship at the start of each billing cycle. Butter ships with ice packs in warm months.',
+    a: 'Orders ship in 2–3 business days. Every product — including our ghee butters — is shelf-stable, so everything ships ambient with no cold-chain surcharges. Free shipping on orders over $45 and on every subscription box. Subscription boxes ship at the start of each cycle.',
   },
 ];
 

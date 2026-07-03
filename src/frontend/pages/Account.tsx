@@ -98,7 +98,7 @@ export function Account() {
             <p className="font-heading text-lg font-black text-gold">{loyalty.tier.name}</p>
             <p className="text-sm text-medical/60">{loyalty.points} pts</p>
             {loyalty.nextTier && (
-              <p className="mt-1 text-xs text-medical/50">
+              <p className="mt-1 text-xs text-medical/60">
                 {loyalty.nextTier.pointsNeeded} pts to {loyalty.nextTier.name}
               </p>
             )}
@@ -151,10 +151,14 @@ export function Account() {
                 <p className="text-2xl font-black text-gold">{subscription.tierName}</p>
                 <p className="mt-1 text-medical/70">
                   {subscription.itemsPerMonth} items · {subscription.cadenceLabel.toLowerCase()} ·{' '}
-                  {subscription.priceMonthly ? `${formatPrice(subscription.priceMonthly)}/box` : ''}
+                  {subscription.priceMonthly
+                    ? subscription.cadence === 'annual'
+                      ? `${formatPrice(subscription.priceMonthly * 10)}/yr`
+                      : `${formatPrice(subscription.priceMonthly)}/box`
+                    : ''}
                 </p>
                 {subscription.nextBillingDate && (
-                  <p className="mt-1 text-sm text-medical/50">
+                  <p className="mt-1 text-sm text-medical/60">
                     Next refill: {new Date(subscription.nextBillingDate).toLocaleDateString()}
                   </p>
                 )}
@@ -219,7 +223,7 @@ export function Account() {
       {/* Orders + ratings */}
       <section className="mt-12">
         <h2 className="text-3xl font-bold">Order History</h2>
-        <p className="mt-1 text-sm text-medical/50">Rate each treatment — it sharpens your future prescriptions.</p>
+        <p className="mt-1 text-sm text-medical/60">Rate each treatment — it sharpens your future prescriptions.</p>
         {orders === null ? (
           <PageSpinner />
         ) : orders.length === 0 ? (
@@ -230,8 +234,8 @@ export function Account() {
               <div key={o.id} className="rx-card">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="font-mono text-sm text-medical/50">Order {o.id}</p>
-                    <p className="text-sm text-medical/50">{new Date(o.createdAt).toLocaleString()}</p>
+                    <p className="font-mono text-sm text-medical/60">Order {o.id}</p>
+                    <p className="text-sm text-medical/60">{new Date(o.createdAt).toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${STATUS_STYLES[o.status] ?? 'bg-medical/10'}`}>
@@ -245,7 +249,7 @@ export function Account() {
                     <li key={`${o.id}-${i.productId}`} className="flex flex-wrap items-center justify-between gap-2">
                       <span>
                         {i.quantity} × {i.slug ? <Link className="text-rx hover:underline" to={`/product/${i.slug}`}>{i.name}</Link> : i.name}{' '}
-                        <span className="text-medical/50">({formatPrice(i.price)})</span>
+                        <span className="text-medical/60">({formatPrice(i.price)})</span>
                       </span>
                       <span className="flex items-center gap-1" aria-label={`Rate ${i.name}`}>
                         {[1, 2, 3, 4, 5].map((star) => (

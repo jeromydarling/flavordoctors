@@ -142,7 +142,9 @@ async function createSubscriptionFromSession(rc: RequestContext, session: Record
   const stripeSubId: string | null = session.subscription ?? null;
   const tierKey = (session.metadata?.tier ?? 'starter') as TierKey;
   const tier = TIERS[tierKey] ?? TIERS.starter;
-  const cadence: string = session.metadata?.cadence === 'bimonthly' ? 'bimonthly' : 'monthly';
+  const cadence: string = ['bimonthly', 'annual'].includes(session.metadata?.cadence)
+    ? session.metadata.cadence
+    : 'monthly';
   const userId: string | null = session.metadata?.user_id ?? null;
   if (!stripeSubId || !userId) return;
 

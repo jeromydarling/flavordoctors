@@ -33,7 +33,7 @@ const CONTAINER_BY_COLLECTION = {
   mayo: 'glass jar (8 oz)',
   'burger-sauce': 'glass jar (8 oz)',
   toppers: 'glass jar (8 oz)',
-  butter: 'parchment-wrapped butter roll (4 oz)',
+  butter: 'small amber glass jar of golden spiced ghee butter (4 oz)',
   seasoning: 'amber glass shaker jar (4 oz)',
 };
 

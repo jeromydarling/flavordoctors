@@ -95,8 +95,10 @@ export const TIERS = {
 export type TierKey = keyof typeof TIERS;
 
 export const CADENCES = {
-  monthly: { label: 'Monthly', intervalCount: 1 },
-  bimonthly: { label: 'Every 2 months', intervalCount: 2 },
+  monthly: { label: 'Monthly', intervalCount: 1, priceMultiplier: 1 },
+  bimonthly: { label: 'Every 2 months', intervalCount: 2, priceMultiplier: 1 },
+  // Annual prepay: 12 boxes billed once a year at 10× the box price (2 months free).
+  annual: { label: 'Annual', intervalCount: 12, priceMultiplier: 10 },
 } as const;
 
 export type CadenceKey = keyof typeof CADENCES;

@@ -9,14 +9,14 @@ INSERT OR REPLACE INTO products (id, slug, name, collection, description, price,
 ('p004', 'smoked-cheddar-cure',      'Smoked Cheddar Cure',      'mayo',         'Smoky cheddar mayo — campfire depth with sharp cheese richness.', 1049, 0),
 ('p005', 'saffron-gold',             'Saffron Gold',             'mayo',         'Saffron aioli-style mayo. Liquid gold for sandwiches, fries, and seafood.', 1199, 0),
 
--- Doctored Butter (4 oz rolls)
-('p006', 'cowboy-compound',          'Cowboy Compound',          'butter',       'Dijon, horseradish, garlic, and chili flake compound butter. Steak''s best friend.', 1249, 1),
-('p007', 'miso-doctor',              'Miso Doctor',              'butter',       'White miso, garlic, and sesame butter. Umami in spreadable form.', 1249, 0),
-('p008', 'seoul-spice',              'Seoul Spice',              'butter',       'Gochujang and sesame butter — sweet heat with toasty depth.', 1249, 0),
-('p009', 'garam-gold',               'Garam Gold',               'butter',       'Garam masala, ginger, and garlic butter. Warm spice for everything.', 1249, 0),
-('p010', 'truffle-treatment',        'Truffle Treatment',        'butter',       'Black truffle and cracked pepper butter. The luxury course of treatment.', 1499, 1),
-('p011', 'chile-lime-cure',          'Chile-Lime Cure',          'butter',       'Lime, chili, and cilantro butter. Bright, zesty, and a little dangerous.', 1199, 0),
-('p012', 'blueberry-lavender-rx',    'Blueberry Lavender Rx',    'butter',       'Blueberry, lavender, and honey butter. Breakfast, prescribed.', 1299, 0),
+-- Doctored Ghee Butter (4 oz jars, shelf-stable)
+('p006', 'cowboy-compound',          'Cowboy Compound',          'butter',       'Dijon, horseradish, garlic, and chili flake ghee butter. Steak''s best friend — no fridge required.', 1249, 1),
+('p007', 'miso-doctor',              'Miso Doctor',              'butter',       'White miso, garlic, and sesame ghee butter. Umami in spoonable, shelf-stable form.', 1249, 0),
+('p008', 'seoul-spice',              'Seoul Spice',              'butter',       'Gochujang and sesame ghee butter — sweet heat with toasty depth.', 1249, 0),
+('p009', 'garam-gold',               'Garam Gold',               'butter',       'Garam masala, ginger, and garlic ghee butter. Warm spice for everything.', 1249, 0),
+('p010', 'truffle-treatment',        'Truffle Treatment',        'butter',       'Black truffle and cracked pepper ghee butter. The luxury course of treatment.', 1499, 1),
+('p011', 'chile-lime-cure',          'Chile-Lime Cure',          'butter',       'Lime, chili, and cilantro ghee butter. Bright, zesty, and a little dangerous.', 1199, 0),
+('p012', 'blueberry-lavender-rx',    'Blueberry Lavender Rx',    'butter',       'Blueberry, lavender, and honey ghee butter. Breakfast, prescribed.', 1299, 0),
 
 -- Doctored Burger Sauce (8 oz jars)
 ('p013', 'canes-classic',            'Cane''s Classic',          'burger-sauce', 'Raising Cane''s inspired dipping sauce — peppery, tangy, unreasonably good.', 999, 0),

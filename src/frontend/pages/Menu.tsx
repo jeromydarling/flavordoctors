@@ -43,6 +43,7 @@ export function Menu() {
         ))}
       </div>
 
+      <h2 className="sr-only">Products</h2>
       {products === null ? (
         <PageSpinner />
       ) : products.length === 0 ? (

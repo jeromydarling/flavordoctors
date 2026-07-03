@@ -22,7 +22,7 @@ export function ProductImage({ product, className = '' }: { product: Product; cl
           {COLLECTION_EMOJI[product.collection] ?? '💊'}
         </span>
         <span className="mt-2 px-3 text-center font-heading text-lg font-bold text-gold">{product.name}</span>
-        <span className="text-xs uppercase tracking-widest text-medical/50">Image pending Rx</span>
+        <span className="text-xs uppercase tracking-widest text-medical/60">Image pending Rx</span>
       </div>
     );
   }

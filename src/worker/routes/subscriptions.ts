@@ -53,11 +53,14 @@ export const createSubscription = requireAuth(async (req, rc) => {
         quantity: 1,
         price_data: {
           currency: 'usd',
-          unit_amount: tier.price,
+          unit_amount: tier.price * cadence.priceMultiplier,
           recurring: { interval: 'month', interval_count: cadence.intervalCount },
           product_data: {
             name: `Flavor Doctors Rx Box — ${tier.name} (${cadence.label})`,
-            description: `${tier.items} doctored items, delivered ${cadence.label.toLowerCase()}`,
+            description:
+              cadenceKey === 'annual'
+                ? `${tier.items} doctored items monthly — 12 boxes billed annually, 2 months free`
+                : `${tier.items} doctored items, delivered ${cadence.label.toLowerCase()}`,
           },
         },
       },

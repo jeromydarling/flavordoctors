@@ -62,10 +62,12 @@ export function Subscribe() {
           </button>
         ))}
       </div>
-      <p className="mt-2 text-center text-sm text-medical/50">
+      <p className="mt-2 text-center text-sm text-medical/60">
         {cadence === 'bimonthly'
           ? 'Every-2-months: same box, half the pace — perfect if your pantry runs deep.'
-          : 'Monthly: the standard course of treatment.'}
+          : cadence === 'annual'
+            ? 'Annual prepay: 12 monthly boxes, billed once — you pay for 10.'
+            : 'Monthly: the standard course of treatment.'}
       </p>
 
       {error && <p className="mx-auto mt-8 max-w-lg rounded bg-red-500/20 p-3 text-center text-red-300">{error}</p>}
@@ -83,14 +85,30 @@ export function Subscribe() {
                   Doctor Recommended
                 </span>
               )}
+              {i === 2 && (
+                <span className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-rx px-4 py-1 text-xs font-extrabold uppercase tracking-wide text-navy">
+                  Best Value — lowest per item
+                </span>
+              )}
               <h2 className="mt-2 font-heading text-3xl font-black">{tier.name}</h2>
-              <p className="mt-4 text-5xl font-black text-rx">
-                {formatPrice(tier.price)}
-                <span className="text-lg font-semibold text-medical/50">/box</span>
-              </p>
+              {cadence === 'annual' ? (
+                <>
+                  <p className="mt-4 text-5xl font-black text-rx">
+                    {formatPrice(tier.price * 10)}
+                    <span className="text-lg font-semibold text-medical/60">/yr</span>
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-gold">12 boxes — 2 months free</p>
+                </>
+              ) : (
+                <p className="mt-4 text-5xl font-black text-rx">
+                  {formatPrice(tier.price)}
+                  <span className="text-lg font-semibold text-medical/60">/box</span>
+                </p>
+              )}
               <p className="mt-2 text-lg font-bold text-gold">{tier.items} items per box</p>
               <p className="mt-1 text-sm font-bold text-rx">
-                Save ~{savings}% vs à la carte · {formatPrice(Math.round(tier.price / tier.items))}/item
+                Save ~{cadence === 'annual' ? Math.round((1 - (tier.price * 10) / (12 * tier.items * AVG_ITEM_PRICE)) * 100) : savings}% vs à la
+                carte · {formatPrice(Math.round((cadence === 'annual' ? tier.price * 10 / 12 : tier.price) / tier.items))}/item
               </p>
               <p className="mt-4 flex-1 text-medical/70">{tier.blurb}</p>
               <ul className="mt-6 space-y-2 text-left text-sm text-medical/80">
@@ -112,7 +130,7 @@ export function Subscribe() {
         })}
       </div>
 
-      <p className="mt-10 text-center text-sm text-medical/50">
+      <p className="mt-10 text-center text-sm text-medical/60">
         Billed via Stripe per box. Skip, pause, downshift to every-2-months, or cancel anytime — no cancellation
         maze, we promise. {user ? '' : 'You’ll be asked to sign in before checkout.'}
       </p>

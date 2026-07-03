@@ -70,7 +70,7 @@ export function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          {mode === 'register' && <p className="mt-1 text-xs text-medical/50">At least 8 characters.</p>}
+          {mode === 'register' && <p className="mt-1 text-xs text-medical/60">At least 8 characters.</p>}
         </div>
         <button type="submit" className="btn-rx w-full" disabled={busy}>
           {busy ? 'One moment…' : mode === 'login' ? 'Sign In' : 'Create Account'}

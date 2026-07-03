@@ -96,6 +96,8 @@ test.describe.serial('Admin & Clinical Trials', () => {
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/image-gen');
     await expect(page.getByText('Flux Product Photography')).toBeVisible();
-    expect(await page.getByRole('button', { name: /Generate & Publish|Regenerate & Publish/ }).count()).toBeGreaterThanOrEqual(34);
+    const generateButtons = page.getByRole('button', { name: /Generate & Publish|Regenerate & Publish/ });
+    await expect(generateButtons.first()).toBeVisible();
+    expect(await generateButtons.count()).toBeGreaterThanOrEqual(34);
   });
 });

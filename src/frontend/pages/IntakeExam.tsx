@@ -165,7 +165,7 @@ ${items}
           </Link>
         </div>
         {!result.saved && (
-          <p className="mt-4 text-sm text-medical/50">
+          <p className="mt-4 text-sm text-medical/60">
             <Link to="/login" className="text-rx underline">Sign in</Link> to save this diagnosis to your chart.
           </p>
         )}
@@ -191,7 +191,7 @@ ${items}
       {error && <p className="mt-6 rounded bg-red-500/20 p-3 text-center text-red-300">{error}</p>}
 
       <div className="rx-card mt-8">
-        <p className="text-sm font-bold uppercase tracking-widest text-medical/50">
+        <p className="text-sm font-bold uppercase tracking-widest text-medical/60">
           Question {step + 1} of {QUESTIONS.length}
         </p>
         <h2 className="mt-2 font-heading text-3xl font-bold">{q.label}</h2>
@@ -209,7 +209,7 @@ ${items}
         </div>
         {busy && <p className="mt-4 text-center text-rx">The doctor is reviewing your chart…</p>}
         {step > 0 && !busy && (
-          <button className="mt-4 text-sm text-medical/50 hover:text-medical" onClick={() => setStep(step - 1)}>
+          <button className="mt-4 text-sm text-medical/60 hover:text-medical" onClick={() => setStep(step - 1)}>
             ← Previous question
           </button>
         )}

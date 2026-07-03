@@ -62,7 +62,7 @@ export function Pharmacist() {
         <div className="fixed bottom-20 right-5 z-40 flex h-[28rem] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border-2 border-navy-lighter bg-navy shadow-2xl">
           <div className="border-b border-navy-lighter bg-navy-light px-4 py-3">
             <p className="font-heading text-lg font-bold">The Pharmacist 🩺</p>
-            <p className="text-xs text-medical/50">AI flavor consult — not actual medicine</p>
+            <p className="text-xs text-medical/60">AI flavor consult — not actual medicine</p>
           </div>
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
             {entries.map((e, i) => (
@@ -93,7 +93,7 @@ export function Pharmacist() {
                 )}
               </div>
             ))}
-            {busy && <p className="text-sm text-medical/50">Checking the formulary…</p>}
+            {busy && <p className="text-sm text-medical/60">Checking the formulary…</p>}
           </div>
           <div className="flex gap-2 border-t border-navy-lighter p-3">
             <input

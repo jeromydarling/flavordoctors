@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { RequireAuth, RequireAdmin } from './components/Protected';
 import { Home } from './pages/Home';
@@ -17,8 +18,34 @@ import { AdminProducts } from './pages/admin/AdminProducts';
 import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminImageGen } from './pages/admin/AdminImageGen';
 
+const ROUTE_TITLES: Record<string, string> = {
+  '/': 'Flavor Doctors — Prescription-Strength Flavor, Small-Batch Sauces & Seasonings',
+  '/menu': 'The Menu — All 34 Treatments | Flavor Doctors',
+  '/subscribe': 'Monthly Rx Box — Choose Your Own Subscription | Flavor Doctors',
+  '/trials': 'Clinical Trials — Limited Flavor Drops | Flavor Doctors',
+  '/intake-exam': 'The Intake Exam — Get Your Flavor Diagnosis | Flavor Doctors',
+  '/about': 'Our Story | Flavor Doctors',
+  '/faq': 'FAQ — Patient Information Leaflet | Flavor Doctors',
+  '/login': 'Patient Check-In | Flavor Doctors',
+  '/account': 'My Chart | Flavor Doctors',
+  '/account/customize': 'Customize Your Rx Box | Flavor Doctors',
+};
+
+/** Keep document.title in sync during client-side navigation (edge injection covers first load). */
+function RouteTitle() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    // Product pages set their own title once the product loads.
+    if (pathname.startsWith('/product/')) return;
+    document.title = ROUTE_TITLES[pathname] ?? 'Flavor Doctors';
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   return (
+    <>
+    <RouteTitle />
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
@@ -82,5 +109,6 @@ export default function App() {
         />
       </Route>
     </Routes>
+    </>
   );
 }
