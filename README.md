@@ -1,6 +1,6 @@
 # 🩺 Flavor Doctors
 
-**Live at [flavordoctors.jer-f84.workers.dev](https://flavordoctors.jer-f84.workers.dev)** — deployed automatically by Cloudflare Workers Builds on every push to this repo.
+**Live at [flavordoctors.com](https://flavordoctors.com)** — deployed automatically by Cloudflare Workers Builds on every push to this repo.
 
 Subscription-based e-commerce for a small-batch sauce & seasoning brand, built entirely on Cloudflare:
 
@@ -126,7 +126,7 @@ npm run db:seed         # load the 34-product catalog
 Create a webhook endpoint in the Stripe dashboard pointing at:
 
 ```
-https://flavordoctors.jer-f84.workers.dev/api/webhooks/stripe
+https://flavordoctors.com/api/webhooks/stripe
 ```
 
 with events: `checkout.session.completed`, `customer.subscription.updated`,

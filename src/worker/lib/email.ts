@@ -2,7 +2,7 @@ import type { Env, EmailAddress } from '../types';
 
 /** Parse an RFC-style "Name <addr@domain>" string into a structured address. */
 function parseFrom(raw: string | undefined): EmailAddress {
-  const fallback = { email: 'orders@flavordoctors.example', name: 'Flavor Doctors' };
+  const fallback = { email: 'orders@flavordoctors.com', name: 'Flavor Doctors' };
   if (!raw) return fallback;
   const match = raw.match(/^\s*(?:"?([^"<]*)"?\s*)?<([^>]+)>\s*$/);
   if (match) return { name: match[1]?.trim() || undefined, email: match[2].trim() };

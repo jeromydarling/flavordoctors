@@ -39,8 +39,10 @@ crons = ["0 16 * * *"]
 [vars]
 # Comma-separated list of emails that are granted admin on register/login.
 ADMIN_EMAILS = "jeromy.darling@gmail.com"
+# Canonical public domain — workers.dev requests 301 here.
+CANONICAL_HOST = "flavordoctors.com"
 # Optional "from" address for transactional email (used with RESEND_API_KEY secret).
-EMAIL_FROM = "Flavor Doctors <orders@flavordoctors.example>"
+EMAIL_FROM = "Flavor Doctors <orders@flavordoctors.com>"
 
 # Secrets (set via `wrangler secret put <NAME>`):
 #   STRIPE_SECRET_KEY      — Stripe API secret key (sk_...)

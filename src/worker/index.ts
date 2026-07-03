@@ -80,6 +80,12 @@ const router = new Router()
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
+    // Canonical-domain redirect: the workers.dev alias 301s to the real domain
+    // so search engines index exactly one origin.
+    if (env.CANONICAL_HOST && url.hostname.endsWith('.workers.dev') && url.hostname !== env.CANONICAL_HOST) {
+      url.hostname = env.CANONICAL_HOST;
+      return Response.redirect(url.toString(), 301);
+    }
     const matched = await router.handle(req, env, ctx);
     if (matched) return matched;
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/images/')) {

@@ -23,6 +23,7 @@ export interface Env {
   EMAIL?: EmailSendBinding;
   ADMIN_EMAILS?: string;
   EMAIL_FROM?: string;
+  CANONICAL_HOST?: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;

@@ -1,7 +1,7 @@
 import type { Env } from './types';
 import { sendEmail, refillReminderEmail, winBackEmail, dropOpenEmail } from './lib/email';
 
-const SITE_URL = 'https://flavordoctors.jer-f84.workers.dev';
+const SITE_URL = 'https://flavordoctors.com';
 
 /** Nightly cron: refill reminders, win-back emails, drop waitlist notifications. */
 export async function runScheduled(env: Env): Promise<void> {
