@@ -52,13 +52,13 @@ test.describe('Public surface', () => {
     await page.goto('/product/ranch-rx');
     await page.getByRole('button', { name: '+ Add to Cart' }).click();
     const drawer = page.getByRole('dialog');
-    await expect(drawer.getByText('$8.99').first()).toBeVisible(); // line price + total both show $8.99
+    await expect(drawer.getByText('$9.99').first()).toBeVisible(); // line price + total both show $9.99
     await expect(drawer.getByText(/Add 2 more items for 15% off/)).toBeVisible();
     // Bump quantity to 3 → bundle unlocked
     await drawer.getByLabel('Increase Ranch Rx').click();
     await drawer.getByLabel('Increase Ranch Rx').click();
     await expect(drawer.getByText(/Bundle bonus: 15% off/)).toBeVisible();
-    await expect(drawer.getByText('$26.97')).toBeVisible();
+    await expect(drawer.getByText('$29.97')).toBeVisible();
     // Shipping nudge shows remaining amount
     await expect(drawer.getByText(/away from free shipping/)).toBeVisible();
     // Remove line

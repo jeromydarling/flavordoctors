@@ -5,7 +5,7 @@ import { TIERS, CADENCES, formatPrice } from '../lib/types';
 import { useAuth } from '../context/AuthContext';
 
 // Average à-la-carte item price used to show honest savings math.
-const AVG_ITEM_PRICE = 1050;
+const AVG_ITEM_PRICE = 1112;
 
 export function Subscribe() {
   const { user } = useAuth();
