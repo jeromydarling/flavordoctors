@@ -17,6 +17,10 @@ import { CheckoutResult } from './pages/CheckoutResult';
 import { AdminProducts } from './pages/admin/AdminProducts';
 import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminImageGen } from './pages/admin/AdminImageGen';
+import { AdminAnalytics } from './pages/admin/AdminAnalytics';
+import { AdminMarketing } from './pages/admin/AdminMarketing';
+import { AdminPromos } from './pages/admin/AdminPromos';
+import { AdminContent } from './pages/admin/AdminContent';
 
 const ROUTE_TITLES: Record<string, string> = {
   '/': 'Flavor Doctors — Prescription-Strength Flavor, Small-Batch Sauces & Seasonings',
@@ -95,6 +99,38 @@ export default function App() {
           element={
             <RequireAdmin>
               <AdminImageGen />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/analytics"
+          element={
+            <RequireAdmin>
+              <AdminAnalytics />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/marketing"
+          element={
+            <RequireAdmin>
+              <AdminMarketing />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/promos"
+          element={
+            <RequireAdmin>
+              <AdminPromos />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/content"
+          element={
+            <RequireAdmin>
+              <AdminContent />
             </RequireAdmin>
           }
         />

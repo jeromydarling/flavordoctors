@@ -29,6 +29,40 @@ import {
 } from './routes/admin';
 import { stripeWebhook } from './routes/webhook';
 import { serveImage } from './routes/images';
+import {
+  joinList,
+  unsubscribe,
+  trackOpen,
+  trackClick,
+  activePromo,
+  landingPage,
+  submitReview,
+  listReviews,
+  starterPackCheckout,
+} from './routes/marketing';
+import {
+  listCampaigns,
+  createCampaign,
+  draftCampaign,
+  testSendCampaign,
+  sendCampaign,
+  listFlows,
+  updateFlow,
+  contactStats,
+  exportContacts,
+  listLandingPages,
+  upsertLandingPage,
+  listPromotions,
+  createPromotion,
+  deactivatePromotion,
+  analytics,
+  generateContent,
+  generateLifestyleImage,
+  sellSheet,
+  rangeMeCsv,
+  pendingReviews,
+  moderateReview,
+} from './routes/adminMarketing';
 import { runScheduled } from './scheduled';
 import { withPageMeta, robotsTxt, sitemapXml, llmsTxt } from './seo';
 import { errorResponse } from './lib/util';
@@ -72,6 +106,39 @@ const router = new Router()
   .post('/api/admin/products/:id/generate-image', adminGenerateImage)
   .get('/api/admin/orders', adminListOrders)
   .put('/api/admin/orders/:id', adminUpdateOrder)
+  // Marketing: public surfaces
+  .post('/api/waitlist', joinList)
+  .get('/unsubscribe', unsubscribe)
+  .post('/unsubscribe', unsubscribe)
+  .get('/t/o', trackOpen)
+  .get('/t/c', trackClick)
+  .get('/api/promo/active', activePromo)
+  .get('/lp/:slug', landingPage)
+  .post('/api/checkout/starter-pack', starterPackCheckout)
+  .get('/api/products/:slug/reviews', listReviews)
+  .post('/api/products/:id/review', submitReview)
+  // Marketing: admin
+  .get('/api/admin/marketing/campaigns', listCampaigns)
+  .post('/api/admin/marketing/campaigns', createCampaign)
+  .post('/api/admin/marketing/campaigns/draft', draftCampaign)
+  .post('/api/admin/marketing/campaigns/:id/test', testSendCampaign)
+  .post('/api/admin/marketing/campaigns/:id/send', sendCampaign)
+  .get('/api/admin/marketing/flows', listFlows)
+  .put('/api/admin/marketing/flows/:key', updateFlow)
+  .get('/api/admin/marketing/contacts', contactStats)
+  .get('/api/admin/marketing/contacts.csv', exportContacts)
+  .get('/api/admin/marketing/landing-pages', listLandingPages)
+  .post('/api/admin/marketing/landing-pages', upsertLandingPage)
+  .get('/api/admin/marketing/promotions', listPromotions)
+  .post('/api/admin/marketing/promotions', createPromotion)
+  .delete('/api/admin/marketing/promotions/:id', deactivatePromotion)
+  .get('/api/admin/analytics', analytics)
+  .post('/api/admin/content/generate', generateContent)
+  .post('/api/admin/content/lifestyle-image', generateLifestyleImage)
+  .get('/api/admin/b2b/sell-sheet', sellSheet)
+  .get('/api/admin/b2b/rangeme.csv', rangeMeCsv)
+  .get('/api/admin/marketing/reviews/pending', pendingReviews)
+  .post('/api/admin/marketing/reviews/:id', moderateReview)
   // Stripe webhooks
   .post('/api/webhooks/stripe', stripeWebhook)
   // Product images from R2

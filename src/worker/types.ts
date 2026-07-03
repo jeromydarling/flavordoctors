@@ -12,6 +12,7 @@ export interface EmailSendBinding {
     html?: string;
     text?: string;
     replyTo?: string | EmailAddress;
+    headers?: Record<string, string>;
   }): Promise<{ messageId?: string }>;
 }
 
@@ -24,6 +25,9 @@ export interface Env {
   ADMIN_EMAILS?: string;
   EMAIL_FROM?: string;
   CANONICAL_HOST?: string;
+  BUSINESS_ADDRESS?: string;
+  GA4_MEASUREMENT_ID?: string;
+  GA4_API_SECRET?: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;

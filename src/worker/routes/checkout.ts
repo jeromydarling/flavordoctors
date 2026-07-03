@@ -102,7 +102,9 @@ export async function createCheckout(req: Request, rc: RequestContext): Promise<
         },
       },
     ],
-    ...(discounts ? { discounts } : {}),
+    // Stripe forbids combining fixed discounts with customer promo codes:
+    // bundles get the automatic 15%; otherwise shoppers can enter promo codes.
+    ...(discounts ? { discounts } : { allow_promotion_codes: true }),
     line_items: items.map((i) => {
       const p = byId.get(i.productId)!;
       return {

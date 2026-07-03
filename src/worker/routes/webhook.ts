@@ -3,7 +3,32 @@ import { TIERS } from '../types';
 import { json, errorResponse, newId } from '../lib/util';
 import { verifyStripeSignature, stripeRequest } from '../lib/stripe';
 import { sendEmail, orderConfirmationEmail, subscriptionConfirmationEmail } from '../lib/email';
+import { upsertContact } from '../lib/marketing';
 import { defaultBoxItems } from './products';
+import type { Env } from '../types';
+
+/** Server-side GA4 purchase event (Measurement Protocol) — ad-blocker-proof revenue. */
+async function ga4Purchase(env: Env, email: string, transactionId: string, valueCents: number): Promise<void> {
+  if (!env.GA4_MEASUREMENT_ID || !env.GA4_API_SECRET) return;
+  try {
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email)));
+    const clientId = `${digest[0] * 16777216 + digest[1] * 65536 + digest[2] * 256 + digest[3]}.${digest[4] * 16777216 + digest[5] * 65536 + digest[6] * 256 + digest[7]}`;
+    await fetch(
+      `https://www.google-analytics.com/mp/collect?measurement_id=${env.GA4_MEASUREMENT_ID}&api_secret=${env.GA4_API_SECRET}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          client_id: clientId,
+          events: [
+            { name: 'purchase', params: { transaction_id: transactionId, value: valueCents / 100, currency: 'USD' } },
+          ],
+        }),
+      }
+    );
+  } catch (err) {
+    console.error('GA4 purchase event failed:', err);
+  }
+}
 
 interface StripeEvent {
   id: string;
@@ -135,6 +160,8 @@ async function createOrderFromSession(rc: RequestContext, session: Record<string
     rc.ctx.waitUntil(
       sendEmail(rc.env, email, 'Your Flavor Doctors prescription has been filled', orderConfirmationEmail(items, session.amount_total ?? 0))
     );
+    rc.ctx.waitUntil(upsertContact(rc.env, email, { source: 'checkout', userId: userId ?? undefined }));
+    rc.ctx.waitUntil(ga4Purchase(rc.env, email, orderId, session.amount_total ?? 0));
   }
 }
 

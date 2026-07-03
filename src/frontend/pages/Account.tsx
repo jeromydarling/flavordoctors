@@ -36,6 +36,9 @@ export function Account() {
   const [subBusy, setSubBusy] = useState(false);
   const [subMessage, setSubMessage] = useState<string | null>(null);
   const [pausePick, setPausePick] = useState(false);
+  const [reviewFor, setReviewFor] = useState<{ productId: string; name: string; rating: number } | null>(null);
+  const [reviewText, setReviewText] = useState('');
+  const [reviewMsg, setReviewMsg] = useState<string | null>(null);
 
   const loadSubscription = () =>
     api
@@ -220,6 +223,44 @@ export function Account() {
         )}
       </section>
 
+      {/* Review composer */}
+      {reviewFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog">
+          <div className="w-full max-w-md rounded-xl border-2 border-navy-lighter bg-navy-light p-6">
+            <h3 className="text-xl font-bold">Review: {reviewFor.name}</h3>
+            <p className="mt-1 text-gold">{'★'.repeat(reviewFor.rating)}{'☆'.repeat(5 - reviewFor.rating)}</p>
+            <textarea
+              className="input mt-3"
+              rows={4}
+              placeholder="How did the treatment work? (10+ characters)"
+              value={reviewText}
+              onChange={(e) => setReviewText(e.target.value)}
+            />
+            {reviewMsg && <p className="mt-2 text-sm text-rx">{reviewMsg}</p>}
+            <div className="mt-4 flex gap-3">
+              <button
+                className="btn-rx !py-2 !text-base"
+                disabled={reviewText.trim().length < 10}
+                onClick={async () => {
+                  try {
+                    await api.post(`/api/products/${reviewFor.productId}/review`, { rating: reviewFor.rating, body: reviewText.trim() });
+                    setReviewMsg('Thanks, Doc! Your review is in for moderation.');
+                    setTimeout(() => { setReviewFor(null); setReviewText(''); setReviewMsg(null); }, 1500);
+                  } catch (e) {
+                    setReviewMsg(e instanceof ApiError ? e.message : 'Could not submit');
+                  }
+                }}
+              >
+                Submit Review
+              </button>
+              <button className="btn-outline !py-2 !text-base" onClick={() => { setReviewFor(null); setReviewText(''); }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Orders + ratings */}
       <section className="mt-12">
         <h2 className="text-3xl font-bold">Order History</h2>
@@ -264,6 +305,14 @@ export function Account() {
                             ★
                           </button>
                         ))}
+                        {(ratings[i.productId] ?? 0) > 0 && (
+                          <button
+                            className="ml-2 text-xs text-rx underline"
+                            onClick={() => setReviewFor({ productId: i.productId, name: i.name, rating: ratings[i.productId] })}
+                          >
+                            + write review
+                          </button>
+                        )}
                       </span>
                     </li>
                   ))}

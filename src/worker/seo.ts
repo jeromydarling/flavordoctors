@@ -103,6 +103,21 @@ async function resolveMeta(pathname: string, origin: string, env: Env): Promise<
       .bind(productMatch[1])
       .first<ProductRow>();
     if (!product) return null;
+    const ratingAgg = await env.DB.prepare(
+      'SELECT COUNT(*) AS n, AVG(rating) AS avg FROM product_ratings WHERE product_id = ?'
+    )
+      .bind(product.id)
+      .first<{ n: number; avg: number | null }>();
+    const aggregateRating =
+      ratingAgg && ratingAgg.n > 0 && ratingAgg.avg
+        ? {
+            aggregateRating: {
+              '@type': 'AggregateRating',
+              ratingValue: Number(ratingAgg.avg.toFixed(1)),
+              reviewCount: ratingAgg.n,
+            },
+          }
+        : {};
     const imageUrl = product.image_r2_key ? `${origin}/images/${product.image_r2_key}` : fallbackImage;
     return {
       title: `${product.name} — ${collectionLabel(product.collection)} | ${BRAND}`,
@@ -119,6 +134,7 @@ async function resolveMeta(pathname: string, origin: string, env: Env): Promise<
           ...(imageUrl ? { image: imageUrl } : {}),
           url: `${origin}${pathname}`,
           brand: { '@type': 'Brand', name: BRAND },
+          ...aggregateRating,
           offers: {
             '@type': 'Offer',
             price: (product.price / 100).toFixed(2),
@@ -169,25 +185,33 @@ function headTags(meta: PageMeta, origin: string): string {
   return tags.join('\n    ');
 }
 
-/** Inject per-route metadata into the SPA shell HTML response. */
+/** Inject per-route metadata (and GA4) into the SPA shell HTML response. */
 export async function withPageMeta(req: Request, env: Env, res: Response): Promise<Response> {
   const contentType = res.headers.get('Content-Type') ?? '';
   if (!contentType.includes('text/html')) return res;
   const url = new URL(req.url);
   const meta = await resolveMeta(url.pathname, url.origin, env).catch(() => null);
-  if (!meta) return res;
-  return new HTMLRewriter()
-    .on('title', {
+
+  const gtag = env.GA4_MEASUREMENT_ID
+    ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${env.GA4_MEASUREMENT_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${env.GA4_MEASUREMENT_ID}');</script>`
+    : '';
+  if (!meta && !gtag) return res;
+
+  let rewriter = new HTMLRewriter();
+  if (meta) {
+    rewriter = rewriter.on('title', {
       element(el) {
         el.setInnerContent(meta.title);
       },
-    })
-    .on('head', {
-      element(el) {
-        el.append(headTags(meta, url.origin), { html: true });
-      },
-    })
-    .transform(res);
+    });
+  }
+  rewriter = rewriter.on('head', {
+    element(el) {
+      el.append(`${meta ? headTags(meta, url.origin) : ''}${gtag}`, { html: true });
+    },
+  });
+  return rewriter.transform(res);
 }
 
 export function robotsTxt(origin: string): Response {

@@ -7,6 +7,35 @@ import { useCart } from '../context/CartContext';
 import { ProductImage } from '../components/ProductImage';
 import { PageSpinner } from '../components/Protected';
 
+interface Review {
+  rating: number;
+  body: string;
+  createdAt: string;
+  author: string;
+}
+
+function Reviews({ slug }: { slug: string }) {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  useEffect(() => {
+    api.get<{ reviews: Review[] }>(`/api/products/${slug}/reviews`).then((d) => setReviews(d.reviews)).catch(() => {});
+  }, [slug]);
+  if (reviews.length === 0) return null;
+  return (
+    <section className="mt-10">
+      <h2 className="text-2xl font-bold">Patient Testimonials</h2>
+      <div className="mt-3 space-y-3">
+        {reviews.map((r, i) => (
+          <div key={i} className="rounded-xl border border-navy-lighter bg-navy-light p-4">
+            <p className="text-gold" aria-label={`${r.rating} out of 5 stars`}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</p>
+            <p className="mt-1 text-medical/80">{r.body}</p>
+            <p className="mt-1 text-xs text-medical/60">— {r.author}, {new Date(r.createdAt).toLocaleDateString()}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function ProductPage() {
   const { slug } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
@@ -61,6 +90,8 @@ export function ProductPage() {
               Or get it in your Rx Box
             </Link>
           </div>
+
+          <Reviews slug={product.slug} />
 
           {/* Prescription-style AI description */}
           <div className="prescription-pad mt-10">

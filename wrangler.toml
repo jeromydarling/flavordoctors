@@ -43,6 +43,9 @@ ADMIN_EMAILS = "jeromy.darling@gmail.com"
 CANONICAL_HOST = "flavordoctors.com"
 # Optional "from" address for transactional email (used with RESEND_API_KEY secret).
 EMAIL_FROM = "Flavor Doctors <orders@flavordoctors.com>"
+# GA4 (optional): set MEASUREMENT_ID here; API secret via `wrangler secret put GA4_API_SECRET`.
+# GA4_MEASUREMENT_ID = "G-XXXXXXXXXX"
+BUSINESS_ADDRESS = "Flavor Doctors · New Prague, MN, USA"
 
 # Secrets (set via `wrangler secret put <NAME>`):
 #   STRIPE_SECRET_KEY      — Stripe API secret key (sk_...)

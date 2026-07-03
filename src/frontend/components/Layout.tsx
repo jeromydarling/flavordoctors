@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Logo, LogoMark } from './Logo';
 import { Pharmacist } from './Pharmacist';
@@ -43,6 +43,7 @@ export function Layout() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <PromoBanner />
       <header className="sticky top-0 z-40 border-b border-navy-lighter bg-navy/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4">
           <Link to="/" aria-label="Flavor Doctors home">
@@ -135,6 +136,33 @@ export function Layout() {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function PromoBanner() {
+  const [promo, setPromo] = useState<{ code: string; bannerText: string; endsAt: string } | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    api.get<{ promo: typeof promo }>('/api/promo/active').then((d) => setPromo(d.promo)).catch(() => {});
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (!promo) return null;
+  const remaining = new Date(promo.endsAt).getTime() - now;
+  if (remaining <= 0) return null;
+  const d = Math.floor(remaining / 86400000);
+  const h = Math.floor((remaining % 86400000) / 3600000);
+  const m = Math.floor((remaining % 3600000) / 60000);
+  const s = Math.floor((remaining % 60000) / 1000);
+  return (
+    <div className="bg-gold px-4 py-2 text-center text-sm font-extrabold text-navy">
+      💊 {promo.bannerText} — code <span className="rounded bg-navy px-2 py-0.5 text-gold">{promo.code}</span>
+      <span className="ml-2 tabular-nums">
+        ends in {d > 0 ? `${d}d ` : ''}{h}h {m}m {s}s
+      </span>
     </div>
   );
 }

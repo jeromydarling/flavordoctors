@@ -1,6 +1,7 @@
 import type { RequestContext, UserRow } from '../types';
 import { json, errorResponse, newId, readJson } from '../lib/util';
 import { hashPassword, verifyPassword } from '../lib/password';
+import { upsertContact } from '../lib/marketing';
 import { signJwt } from '../lib/jwt';
 import { authCookie, clearAuthCookie, isAdminEmail, requireAuth } from '../lib/auth';
 
@@ -26,6 +27,7 @@ export async function register(req: Request, rc: RequestContext): Promise<Respon
   await rc.env.DB.prepare('INSERT INTO users (id, email, password_hash, is_admin) VALUES (?, ?, ?, ?)')
     .bind(id, email, await hashPassword(password), isAdmin)
     .run();
+  rc.ctx.waitUntil(upsertContact(rc.env, email, { source: 'account', userId: id }));
 
   return sessionResponse(rc, { id, email, isAdmin: isAdmin === 1 });
 }

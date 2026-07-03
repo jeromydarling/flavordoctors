@@ -1,10 +1,34 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import type { Product } from '../lib/types';
 import { COLLECTIONS, TIERS, formatPrice } from '../lib/types';
 import { ProductCard } from '../components/ProductCard';
 import { LogoMark } from '../components/Logo';
+
+function StarterPackButton() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const buy = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { url } = await api.post<{ url: string }>('/api/checkout/starter-pack');
+      window.location.href = url;
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Checkout failed');
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="text-center">
+      <button className="btn-rx" onClick={buy} disabled={busy}>
+        {busy ? 'Preparing…' : 'Get the Starter Pack — $49'}
+      </button>
+      {error && <p className="mt-2 max-w-xs text-sm text-red-300">{error}</p>}
+    </div>
+  );
+}
 
 export function Home() {
   const [featured, setFeatured] = useState<Product[]>([]);
@@ -107,6 +131,22 @@ export function Home() {
           {featured.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
+        </div>
+      </section>
+
+      {/* Starter Pack */}
+      <section className="mx-auto max-w-7xl px-4 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-6 rounded-2xl border-2 border-rx bg-navy-light p-8">
+          <div>
+            <h2 className="text-3xl font-black">
+              New patient? Start with the <span className="text-rx">Starter Pack</span>
+            </h2>
+            <p className="mt-2 max-w-xl text-lg text-medical/70">
+              One hero treatment from each of the five collections — mayo, ghee butter, burger sauce, dessert
+              topper, and fry seasoning — for <span className="font-bold text-gold">$49</span> with free shipping.
+            </p>
+          </div>
+          <StarterPackButton />
         </div>
       </section>
 

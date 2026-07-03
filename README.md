@@ -44,6 +44,18 @@ Subscription-based e-commerce for a small-batch sauce & seasoning brand, built e
 | `/admin/orders` | Order management (admin) |
 | `/admin/image-gen` | Flux image generation per SKU → publishes to R2 `products/{slug}/hero.png` (admin) |
 
+## Marketing OS (admin)
+
+- **Campaign Studio** (/admin/marketing) — segment builder over D1 (waitlist, customers, active/canceled subscribers, lapsed 30d…), AI-drafted copy, A/B subject lines, test-send, batched sending via Email Service with open/click tracking. CAN-SPAM compliant: consent-checked, one-click unsubscribe, List-Unsubscribe headers, physical address (BUSINESS_ADDRESS var).
+- **Lifecycle Flows** — editable automations on the nightly cron: 4-email pre-launch waitlist drip + day-3 review request (plus the hardcoded refill/win-back/drop notifications). Deduped per contact.
+- **Landing Pages + Referrals** (/admin/promos) — server-rendered /lp/{slug} pages with email capture, UTM tracking, and a referral loop (3 referrals → auto-issued 15% Stripe promo code).
+- **Specials & Sales** — scheduled promotions create real Stripe promo codes and show a sitewide countdown banner; checkout accepts promo codes (bundles keep the automatic 15%). Starter Pack sampler: 5 hero SKUs, $49, free shipping.
+- **Analytics + Distributor Readiness** (/admin/analytics) — MRR, subscribers, AOV, repeat rate, top SKUs, and a live scorecard against the KeHE/UNFI pitch benchmarks. GA4 optional: set GA4_MEASUREMENT_ID (gtag injected at edge) + GA4_API_SECRET (server-side purchase events via Measurement Protocol).
+- **AI Content Studio** (/admin/content) — weekly social calendars, TikTok captions, subject-line batteries (llama), and Flux lifestyle imagery saved to R2.
+- **B2B Kit** — print-ready sell sheets (per line or full catalog, keystone margins) and RangeMe CSV export.
+- **Written reviews** — customers add reviews from My Chart, admin moderates, approved reviews show on product pages and feed AggregateRating stars into search results.
+- **SMS** — Twilio-backed channel stub (set TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM secrets; A2P 10DLC registration required before production use).
+
 ## Growth & retention features
 
 - **Skip / Pause / Resume** — one-click from My Chart (`pause_collection` on Stripe); paused status synced via webhook.

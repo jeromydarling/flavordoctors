@@ -19,7 +19,19 @@ export function AdminNav() {
           Orders
         </NavLink>
         <NavLink to="/admin/image-gen" className={tabClass}>
-          Image Generation
+          Image Gen
+        </NavLink>
+        <NavLink to="/admin/analytics" className={tabClass}>
+          Analytics
+        </NavLink>
+        <NavLink to="/admin/marketing" className={tabClass}>
+          Marketing
+        </NavLink>
+        <NavLink to="/admin/promos" className={tabClass}>
+          Sales & Pages
+        </NavLink>
+        <NavLink to="/admin/content" className={tabClass}>
+          Content Studio
         </NavLink>
       </nav>
     </div>
