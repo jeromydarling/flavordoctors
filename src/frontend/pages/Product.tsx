@@ -1,11 +1,58 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import type { Product } from '../lib/types';
 import { collectionLabel, formatPrice } from '../lib/types';
+import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { ProductImage } from '../components/ProductImage';
 import { PageSpinner } from '../components/Protected';
+
+function RestockNotify({ productId }: { productId: string }) {
+  const { user } = useAuth();
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const subscribe = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const d = await api.post<{ message: string }>(`/api/products/${productId}/restock-alert`, user ? {} : { email });
+      setMessage(d.message);
+    } catch (e) {
+      setMessage(e instanceof ApiError ? e.message : 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-8 rounded-xl border-2 border-gold/50 p-4">
+      <p className="font-bold text-gold">Temporarily out of stock</p>
+      <p className="mt-1 text-sm text-medical/70">This batch sold out. We'll email you the moment the next one lands.</p>
+      {message ? (
+        <p className="mt-3 rounded bg-rx/10 p-2 text-sm font-semibold text-rx">{message}</p>
+      ) : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {!user && (
+            <input
+              aria-label="Email for restock alert"
+              type="email"
+              className="input !w-64 !py-2 !text-sm"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          )}
+          <button className="btn-gold !px-4 !py-2 !text-sm" disabled={busy || (!user && !email.trim())} onClick={subscribe}>
+            🔔 Notify me when it's back
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Review {
   rating: number;
@@ -39,16 +86,19 @@ function Reviews({ slug }: { slug: string }) {
 export function ProductPage() {
   const { slug } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
+  const [plans, setPlans] = useState<{ slug: string; title: string }[]>([]);
   const [notFound, setNotFound] = useState(false);
   const cart = useCart();
 
   useEffect(() => {
     setProduct(null);
+    setPlans([]);
     setNotFound(false);
     api
-      .get<{ product: Product }>(`/api/products/${slug}`)
+      .get<{ product: Product; recipes?: { slug: string; title: string }[] }>(`/api/products/${slug}`)
       .then((d) => {
         setProduct(d.product);
+        setPlans(d.recipes ?? []);
         document.title = `${d.product.name} | Flavor Doctors`;
       })
       .catch(() => setNotFound(true));
@@ -82,14 +132,33 @@ export function ProductPage() {
           <h1 className="mt-2 text-5xl font-black">{product.name}</h1>
           <p className="mt-4 text-xl leading-relaxed text-medical/80">{product.description}</p>
           <p className="mt-6 text-4xl font-extrabold text-gold">{formatPrice(product.price)}</p>
-          <div className="mt-8 flex flex-wrap gap-4">
-            <button className="btn-rx" onClick={() => cart.add(product)}>
-              + Add to Cart
-            </button>
-            <Link to="/subscribe" className="btn-outline">
-              Or get it in your Rx Box
-            </Link>
-          </div>
+          {product.inStock === false ? (
+            <RestockNotify productId={product.id} />
+          ) : (
+            <div className="mt-8 flex flex-wrap gap-4">
+              <button className="btn-rx" onClick={() => cart.add(product)}>
+                + Add to Cart
+              </button>
+              <Link to="/subscribe" className="btn-outline">
+                Or get it in your Rx Box
+              </Link>
+            </div>
+          )}
+
+          {plans.length > 0 && (
+            <div className="mt-8 rounded-xl border border-navy-lighter bg-navy-light p-4">
+              <p className="text-sm font-bold uppercase tracking-widest text-rx">Treatment plans featuring this</p>
+              <ul className="mt-2 space-y-1">
+                {plans.map((p) => (
+                  <li key={p.slug}>
+                    <a className="text-gold hover:underline" href={`/treatment-plans/${p.slug}`}>
+                      {p.title} →
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <Reviews slug={product.slug} />
 

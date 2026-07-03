@@ -1,7 +1,17 @@
 import type { Env } from './types';
 import { Router } from './router';
 import { register, login, logout, me } from './routes/auth';
-import { listProducts, getProduct } from './routes/products';
+import { listProducts, getProduct, restockAlert } from './routes/products';
+import {
+  treatmentPlansIndex,
+  treatmentPlanPage,
+  generateRecipe,
+  listRecipes,
+  saveRecipe,
+  setRecipePublished,
+  deleteRecipe,
+} from './routes/recipes';
+import { npsRespond } from './routes/nps';
 import { createCheckout } from './routes/checkout';
 import {
   createSubscription,
@@ -11,10 +21,12 @@ import {
   pauseSubscription,
   resumeSubscription,
   createPortalSession,
+  saveOfferDiscount,
+  cancelSubscription,
 } from './routes/subscriptions';
 import { listMyOrders } from './routes/account';
 import { submitQuiz, getMyProfile } from './routes/quiz';
-import { getMyLoyalty, rateProduct, getMyRatings } from './routes/loyalty';
+import { getMyLoyalty, getMyReferral, rateProduct, getMyRatings } from './routes/loyalty';
 import { listDrops, joinWaitlist } from './routes/drops';
 import { pharmacistChat } from './routes/pharmacist';
 import {
@@ -105,6 +117,12 @@ const router = new Router()
   // Catalog
   .get('/api/products', listProducts)
   .get('/api/products/:slug', getProduct)
+  .post('/api/products/:id/restock-alert', restockAlert)
+  // Treatment Plans (SEO recipe hub, server-rendered)
+  .get('/treatment-plans', treatmentPlansIndex)
+  .get('/treatment-plans/:slug', treatmentPlanPage)
+  // NPS pulse one-click response
+  .get('/nps', npsRespond)
   // Intake Exam + Pharmacist
   .post('/api/quiz', submitQuiz)
   .post('/api/pharmacist', pharmacistChat)
@@ -119,11 +137,14 @@ const router = new Router()
   .post('/api/account/subscription/skip', skipNextBox)
   .post('/api/account/subscription/pause', pauseSubscription)
   .post('/api/account/subscription/resume', resumeSubscription)
+  .post('/api/account/subscription/save-offer', saveOfferDiscount)
+  .post('/api/account/subscription/cancel', cancelSubscription)
   .post('/api/account/portal', createPortalSession)
   .get('/api/account/orders', listMyOrders)
   // My Chart extras
   .get('/api/account/profile', getMyProfile)
   .get('/api/account/loyalty', getMyLoyalty)
+  .get('/api/account/referral', getMyReferral)
   .get('/api/account/ratings', getMyRatings)
   .post('/api/products/:id/rate', rateProduct)
   // Admin
@@ -190,6 +211,12 @@ const router = new Router()
   .post('/api/admin/inventory/receive', receiveStock)
   .post('/api/admin/inventory/adjust', adjustStock)
   .put('/api/admin/inventory/:id/reorder-point', setReorderPoint)
+  // Treatment Plans admin
+  .get('/api/admin/recipes', listRecipes)
+  .post('/api/admin/recipes', saveRecipe)
+  .post('/api/admin/recipes/generate', generateRecipe)
+  .post('/api/admin/recipes/:id/publish', setRecipePublished)
+  .delete('/api/admin/recipes/:id', deleteRecipe)
   // Stripe webhooks
   .post('/api/webhooks/stripe', stripeWebhook)
   // Product images from R2

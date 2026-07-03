@@ -1,8 +1,9 @@
-import { LOYALTY_TIERS } from '../types';
+import { LOYALTY_TIERS, POINT_VALUE_CENTS, REDEEM_BLOCK } from '../types';
 import { json, errorResponse, readJson } from '../lib/util';
 import { requireAuth } from '../lib/auth';
+import { upsertContact } from '../lib/marketing';
 
-/** Board Certification: points balance + current/next tier. */
+/** Board Certification: points balance + current/next tier + redemption math. */
 export const getMyLoyalty = requireAuth(async (_req, rc) => {
   const row = await rc.env.DB.prepare('SELECT COALESCE(SUM(delta), 0) AS points FROM points_ledger WHERE user_id = ?')
     .bind(rc.user!.id)
@@ -15,10 +16,47 @@ export const getMyLoyalty = requireAuth(async (_req, rc) => {
   }
   const nextTier = LOYALTY_TIERS.find((t) => t.min > points) ?? null;
 
+  const redeemable = Math.floor(points / REDEEM_BLOCK) * REDEEM_BLOCK;
   return json({
     points,
     tier: { key: tier.key, name: tier.name },
     nextTier: nextTier ? { key: nextTier.key, name: nextTier.name, pointsNeeded: nextTier.min - points } : null,
+    redemption: {
+      block: REDEEM_BLOCK,
+      blockValueCents: REDEEM_BLOCK * POINT_VALUE_CENTS,
+      redeemablePoints: redeemable,
+      redeemableValueCents: redeemable * POINT_VALUE_CENTS,
+    },
+  });
+});
+
+/** Refer a Patient: the user's share link + how their referrals are doing. */
+export const getMyReferral = requireAuth(async (req, rc) => {
+  // Everyone with an account gets a contact row (and therefore a ref code).
+  await upsertContact(rc.env, rc.user!.email, { userId: rc.user!.id, source: 'account' });
+  const contact = await rc.env.DB.prepare('SELECT ref_code FROM contacts WHERE email = ?')
+    .bind(rc.user!.email)
+    .first<{ ref_code: string }>();
+  if (!contact) return errorResponse('Could not load your referral code', 500);
+
+  const [signups, converted, earned] = await Promise.all([
+    rc.env.DB.prepare('SELECT COUNT(*) AS n FROM contacts WHERE referred_by = ?').bind(contact.ref_code).first<{ n: number }>(),
+    rc.env.DB.prepare(
+      `SELECT COUNT(DISTINCT c.email) AS n FROM contacts c
+       WHERE c.referred_by = ? AND EXISTS (SELECT 1 FROM orders o WHERE o.email = c.email AND o.status != 'canceled')`
+    ).bind(contact.ref_code).first<{ n: number }>(),
+    rc.env.DB.prepare(
+      "SELECT COALESCE(SUM(delta), 0) AS pts FROM points_ledger WHERE user_id = ? AND reason = 'referral'"
+    ).bind(rc.user!.id).first<{ pts: number }>(),
+  ]);
+
+  const host = rc.env.CANONICAL_HOST ? `https://${rc.env.CANONICAL_HOST}` : new URL(req.url).origin;
+  return json({
+    code: contact.ref_code,
+    url: `${host}/?ref=${contact.ref_code}`,
+    signups: signups?.n ?? 0,
+    converted: converted?.n ?? 0,
+    pointsEarned: earned?.pts ?? 0,
   });
 });
 

@@ -43,7 +43,12 @@ const ROUTE_TITLES: Record<string, string> = {
 
 /** Keep document.title in sync during client-side navigation (edge injection covers first load). */
 function RouteTitle() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  useEffect(() => {
+    // Referral links (?ref=CODE) stick until the visitor registers.
+    const ref = new URLSearchParams(search).get('ref');
+    if (ref && /^[A-Z2-9]{6}$/.test(ref)) localStorage.setItem('fd_ref', ref);
+  }, [search]);
   useEffect(() => {
     // Product pages set their own title once the product loads.
     if (pathname.startsWith('/product/')) return;

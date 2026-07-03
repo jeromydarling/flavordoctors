@@ -1,7 +1,20 @@
 import { createHmac, randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import type { APIRequestContext, Page } from '@playwright/test';
 
 export const WEBHOOK_SECRET = 'whsec_dummy'; // matches .dev.vars for local runs
+
+/** Read a var from .dev.vars so specs match whatever secret the worker runs with. */
+export function devVar(name: string): string {
+  const line = readFileSync('.dev.vars', 'utf8').split('\n').find((l) => l.startsWith(`${name}=`));
+  if (!line) throw new Error(`${name} not found in .dev.vars`);
+  return line.slice(name.length + 1).trim();
+}
+
+/** Mirror of the worker's NPS link signature (HMAC-SHA256, first 8 bytes hex). */
+export function npsSig(orderId: string, email: string): string {
+  return createHmac('sha256', devVar('JWT_SECRET')).update(`nps:${orderId}:${email}`).digest('hex').slice(0, 16);
+}
 
 export function uniqueEmail(prefix: string): string {
   return `${prefix}-${randomBytes(4).toString('hex')}@e2e.test`;
@@ -60,7 +73,13 @@ export async function currentUserId(page: Page): Promise<string> {
   return body.user.id;
 }
 
-export function orderPaidEvent(userId: string | null, email: string, cart: { p: string; q: number }[], totalCents: number) {
+export function orderPaidEvent(
+  userId: string | null,
+  email: string,
+  cart: { p: string; q: number }[],
+  totalCents: number,
+  opts: { redeemPoints?: number } = {}
+) {
   const ref = `pi_e2e_${randomBytes(5).toString('hex')}`;
   return {
     id: `evt_e2e_${ref}`,
@@ -76,6 +95,7 @@ export function orderPaidEvent(userId: string | null, email: string, cart: { p: 
           kind: 'order',
           cart: JSON.stringify(cart),
           ...(userId ? { user_id: userId } : {}),
+          ...(opts.redeemPoints ? { redeem_points: String(opts.redeemPoints) } : {}),
         },
       },
     },

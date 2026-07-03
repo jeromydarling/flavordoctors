@@ -1,5 +1,5 @@
 import type { ProductRow, RequestContext, TierKey } from '../types';
-import { TIERS } from '../types';
+import { TIERS, REFERRAL_POINTS, POINT_VALUE_CENTS } from '../types';
 import { json, errorResponse, newId } from '../lib/util';
 import { verifyStripeSignature, stripeRequest } from '../lib/stripe';
 import { sendEmail, orderConfirmationEmail, subscriptionConfirmationEmail } from '../lib/email';
@@ -171,7 +171,18 @@ async function createOrderFromSession(rc: RequestContext, session: Record<string
       ).bind(userId, Math.floor((session.amount_total ?? 0) / 100), paymentRef)
     );
   }
+  // Redeemed points come off the balance only now that the payment landed.
+  const redeemPoints = parseInt(session.metadata?.redeem_points ?? '0', 10);
+  if (userId && redeemPoints > 0) {
+    statements.push(
+      rc.env.DB.prepare(
+        "INSERT OR IGNORE INTO points_ledger (user_id, delta, reason, ref) VALUES (?, ?, 'redeem', ?)"
+      ).bind(userId, -redeemPoints, paymentRef)
+    );
+  }
   await rc.env.DB.batch(statements);
+
+  if (email) rc.ctx.waitUntil(referralRewards(rc, email, userId, paymentRef));
 
   // Ship the order out of inventory, FEFO. Idempotent per order id.
   await consumeStock(
@@ -188,6 +199,58 @@ async function createOrderFromSession(rc: RequestContext, session: Record<string
     );
     rc.ctx.waitUntil(upsertContact(rc.env, email, { source: 'checkout', userId: userId ?? undefined }));
     rc.ctx.waitUntil(ga4Purchase(rc.env, email, orderId, session.amount_total ?? 0));
+  }
+}
+
+/**
+ * Refer-a-Patient: when a referred customer's FIRST order is paid, both sides
+ * earn points. Idempotent per payment via the ledger's (reason, ref) index.
+ */
+async function referralRewards(rc: RequestContext, email: string, buyerUserId: string | null, paymentRef: string): Promise<void> {
+  try {
+    const contact = await rc.env.DB.prepare('SELECT referred_by FROM contacts WHERE email = ?')
+      .bind(email)
+      .first<{ referred_by: string | null }>();
+    if (!contact?.referred_by) return;
+    const orders = await rc.env.DB.prepare("SELECT COUNT(*) AS n FROM orders WHERE email = ? AND status != 'canceled'")
+      .bind(email)
+      .first<{ n: number }>();
+    if ((orders?.n ?? 0) !== 1) return; // reward first orders only
+
+    const referrer = await rc.env.DB.prepare(
+      `SELECT c.email, COALESCE(c.user_id, u.id) AS user_id FROM contacts c
+       LEFT JOIN users u ON u.email = c.email WHERE c.ref_code = ?`
+    )
+      .bind(contact.referred_by)
+      .first<{ email: string; user_id: string | null }>();
+    if (!referrer || referrer.email === email) return; // unknown code or self-referral
+
+    const statements = [];
+    if (referrer.user_id) {
+      statements.push(
+        rc.env.DB.prepare(
+          "INSERT OR IGNORE INTO points_ledger (user_id, delta, reason, ref) VALUES (?, ?, 'referral', ?)"
+        ).bind(referrer.user_id, REFERRAL_POINTS, paymentRef)
+      );
+    }
+    if (buyerUserId) {
+      statements.push(
+        rc.env.DB.prepare(
+          "INSERT OR IGNORE INTO points_ledger (user_id, delta, reason, ref) VALUES (?, ?, 'referral_welcome', ?)"
+        ).bind(buyerUserId, REFERRAL_POINTS, paymentRef)
+      );
+    }
+    if (statements.length > 0) await rc.env.DB.batch(statements);
+    if (referrer.user_id) {
+      await sendEmail(
+        rc.env,
+        referrer.email,
+        'Your referral filled their first prescription 🩺',
+        `<h2>House call successful!</h2><p>Someone you referred just placed their first order, so <strong>${REFERRAL_POINTS} Board Certification points</strong> (worth $${((REFERRAL_POINTS * POINT_VALUE_CENTS) / 100).toFixed(2)}) were added to your chart.</p><p><a href="https://flavordoctors.com/account" style="color:#27AE60;font-weight:bold;">See your balance →</a></p>`
+      );
+    }
+  } catch (err) {
+    console.error('Referral reward failed:', err);
   }
 }
 
@@ -256,8 +319,8 @@ async function handleSubscriptionUpdated(rc: RequestContext, sub: Record<string,
           : 'incomplete';
   const nextBilling = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
   await rc.env.DB.prepare(
-    'UPDATE subscriptions SET status = ?, next_billing_date = COALESCE(?, next_billing_date) WHERE stripe_subscription_id = ?'
+    'UPDATE subscriptions SET status = ?, cancel_at_period_end = ?, next_billing_date = COALESCE(?, next_billing_date) WHERE stripe_subscription_id = ?'
   )
-    .bind(status, nextBilling, sub.id)
+    .bind(status, sub.cancel_at_period_end ? 1 : 0, nextBilling, sub.id)
     .run();
 }

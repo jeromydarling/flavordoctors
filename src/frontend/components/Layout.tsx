@@ -4,7 +4,7 @@ import { Logo, LogoMark } from './Logo';
 import { Pharmacist } from './Pharmacist';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { formatPrice, FREE_SHIPPING_THRESHOLD, BUNDLE_MIN_QTY, BUNDLE_PERCENT } from '../lib/types';
+import { formatPrice, FREE_SHIPPING_THRESHOLD, BUNDLE_MIN_QTY, BUNDLE_PERCENT, type LoyaltyInfo } from '../lib/types';
 import { api } from '../lib/api';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -173,8 +173,27 @@ function PromoBanner() {
 
 function CartDrawer() {
   const cart = useCart();
+  const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loyalty, setLoyalty] = useState<LoyaltyInfo | null>(null);
+  const [redeemPoints, setRedeemPoints] = useState(0);
+
+  useEffect(() => {
+    if (cart.isOpen && user) {
+      api.get<LoyaltyInfo>('/api/account/loyalty').then(setLoyalty).catch(() => setLoyalty(null));
+    }
+    if (!cart.isOpen) setRedeemPoints(0);
+  }, [cart.isOpen, user]);
+
+  // Redeemable blocks that fit this cart (leave ≥ $0.50 for Stripe's minimum).
+  const block = loyalty?.redemption?.block ?? 500;
+  const maxByBalance = loyalty?.redemption?.redeemablePoints ?? 0;
+  const maxByCart = Math.floor(Math.max(0, cart.total - 50) / block) * block;
+  const maxRedeem = Math.min(maxByBalance, maxByCart);
+  const redeemOptions = [];
+  for (let p = block; p <= maxRedeem; p += block) redeemOptions.push(p);
+  const pointsValue = redeemPoints; // 1 pt = 1¢
 
   const checkout = async () => {
     setBusy(true);
@@ -182,6 +201,7 @@ function CartDrawer() {
     try {
       const { url } = await api.post<{ url: string }>('/api/checkout', {
         items: cart.lines.map((l) => ({ productId: l.product.id, quantity: l.quantity })),
+        ...(redeemPoints > 0 ? { redeemPoints } : {}),
       });
       window.location.href = url;
     } catch (e) {
@@ -261,9 +281,41 @@ function CartDrawer() {
               )}
             </div>
           )}
+          {user && cart.lines.length > 0 && redeemOptions.length > 0 && (
+            <div className="mb-3 rounded-lg border border-gold/40 p-3 text-sm">
+              <label htmlFor="redeem-points" className="font-bold text-gold">
+                💊 Board Certification points ({loyalty?.points ?? 0} available)
+              </label>
+              <div className="mt-2 flex items-center gap-2">
+                <select
+                  id="redeem-points"
+                  className="input !w-auto !py-1 !text-sm"
+                  value={redeemPoints}
+                  onChange={(e) => setRedeemPoints(parseInt(e.target.value, 10))}
+                >
+                  <option value={0}>Don't redeem</option>
+                  {redeemOptions.map((p) => (
+                    <option key={p} value={p}>
+                      {p} pts → {formatPrice(p)} off
+                    </option>
+                  ))}
+                </select>
+                {redeemPoints > 0 && <span className="font-bold text-rx">−{formatPrice(pointsValue)}</span>}
+              </div>
+            </div>
+          )}
           <div className="mb-4 flex justify-between text-xl font-bold">
             <span>Total</span>
-            <span className="text-gold">{formatPrice(cart.total)}</span>
+            <span className="text-gold">
+              {redeemPoints > 0 ? (
+                <>
+                  <s className="mr-2 text-medical/50">{formatPrice(cart.total)}</s>
+                  {formatPrice(Math.max(0, cart.total - pointsValue))}
+                </>
+              ) : (
+                formatPrice(cart.total)
+              )}
+            </span>
           </div>
           <button className="btn-rx w-full" disabled={cart.lines.length === 0 || busy} onClick={checkout}>
             {busy ? 'Preparing checkout…' : 'Fill Prescription → Checkout'}

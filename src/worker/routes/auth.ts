@@ -8,6 +8,7 @@ import { authCookie, clearAuthCookie, currentRole, isAdminEmail, requireAuth } f
 interface Credentials {
   email?: string;
   password?: string;
+  ref?: string; // referral code captured from ?ref= links
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -27,7 +28,8 @@ export async function register(req: Request, rc: RequestContext): Promise<Respon
   await rc.env.DB.prepare('INSERT INTO users (id, email, password_hash, is_admin, role) VALUES (?, ?, ?, ?, ?)')
     .bind(id, email, await hashPassword(password), role === 'admin' ? 1 : 0, role)
     .run();
-  rc.ctx.waitUntil(upsertContact(rc.env, email, { source: 'account', userId: id }));
+  const referredBy = /^[A-Z2-9]{6}$/.test(body?.ref ?? '') ? body!.ref! : undefined;
+  rc.ctx.waitUntil(upsertContact(rc.env, email, { source: 'account', userId: id, referredBy }));
 
   return sessionResponse(rc, { id, email, role });
 }

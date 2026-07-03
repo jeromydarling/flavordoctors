@@ -168,6 +168,55 @@ export const resumeSubscription = requireAuth(async (_req, rc) => {
   return json({ ok: true });
 });
 
+const SAVE_COUPON = { id: 'FD_SAVE_20', percentOff: 20, name: 'Stay with us — 20% off your next box' };
+
+async function trackSaveOffer(rc: { env: { DB: D1Database } }, userId: string, action: string): Promise<void> {
+  await rc.env.DB.prepare('INSERT INTO save_offer_events (user_id, action) VALUES (?, ?)').bind(userId, action).run();
+}
+
+/** Cancel-flow save offer: 20% off the next box, once per customer ever. */
+export const saveOfferDiscount = requireAuth(async (_req, rc) => {
+  const sub = await liveSubscription(rc, rc.user!.id);
+  if (!sub?.stripe_subscription_id) return errorResponse('No active subscription found', 404);
+  const used = await rc.env.DB.prepare(
+    "SELECT 1 FROM save_offer_events WHERE user_id = ? AND action = 'discount' LIMIT 1"
+  )
+    .bind(rc.user!.id)
+    .first();
+  if (used) return errorResponse('The stay-with-us discount can only be claimed once', 409);
+
+  await ensureCoupon(rc.env, SAVE_COUPON.id, SAVE_COUPON.percentOff, SAVE_COUPON.name);
+  await stripeRequest(rc.env, 'POST', `/v1/subscriptions/${sub.stripe_subscription_id}`, {
+    discounts: [{ coupon: SAVE_COUPON.id }],
+  });
+  await trackSaveOffer(rc, rc.user!.id, 'discount');
+  return json({ ok: true, percentOff: SAVE_COUPON.percentOff });
+});
+
+/** Cancel at period end (with undo) — the box stays active until it lapses. */
+export const cancelSubscription = requireAuth(async (req, rc) => {
+  const body = await readJson<{ undo?: boolean }>(req);
+  const undo = body?.undo === true;
+  const sub = await liveSubscription(rc, rc.user!.id);
+  if (!sub?.stripe_subscription_id) return errorResponse('No active subscription found', 404);
+
+  const updated = await stripeRequest<{ current_period_end?: number }>(
+    rc.env,
+    'POST',
+    `/v1/subscriptions/${sub.stripe_subscription_id}`,
+    { cancel_at_period_end: undo ? 'false' : 'true' }
+  );
+  await rc.env.DB.prepare('UPDATE subscriptions SET cancel_at_period_end = ? WHERE id = ?')
+    .bind(undo ? 0 : 1, sub.id)
+    .run();
+  await trackSaveOffer(rc, rc.user!.id, undo ? 'undo_cancel' : 'cancel');
+  return json({
+    ok: true,
+    cancelAtPeriodEnd: !undo,
+    periodEnd: updated.current_period_end ? new Date(updated.current_period_end * 1000).toISOString() : null,
+  });
+});
+
 /** Stripe Customer Portal session for billing management. */
 export const createPortalSession = requireAuth(async (req, rc) => {
   const customerId = await ensureStripeCustomer(rc.env, rc.user!.id, rc.user!.email);
@@ -202,6 +251,7 @@ export function serializeSubscription(sub: SubscriptionRow) {
     cadence: sub.cadence ?? 'monthly',
     cadenceLabel: cadence.label,
     status: sub.status,
+    cancelAtPeriodEnd: sub.cancel_at_period_end === 1,
     items: sub.items_json ? (JSON.parse(sub.items_json) as string[]) : [],
     nextBillingDate: sub.next_billing_date,
   };

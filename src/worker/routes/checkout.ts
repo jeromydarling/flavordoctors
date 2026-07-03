@@ -6,6 +6,8 @@ import {
   BUNDLE_COUPON,
   DROP_EARLY_ACCESS_MS,
   LIVE_SUB_STATUSES,
+  POINT_VALUE_CENTS,
+  REDEEM_BLOCK,
 } from '../types';
 import { json, errorResponse, readJson } from '../lib/util';
 import { stripeRequest, ensureStripeCustomer, ensureCoupon } from '../lib/stripe';
@@ -42,11 +44,12 @@ export function dropGateError(p: ProductRow, quantity: number, isSubscriber: boo
 
 /** One-time purchase: create a Stripe Checkout Session (guests allowed). */
 export async function createCheckout(req: Request, rc: RequestContext): Promise<Response> {
-  const body = await readJson<{ items?: CartItem[] }>(req);
+  const body = await readJson<{ items?: CartItem[]; redeemPoints?: number }>(req);
   const items = (body?.items ?? []).filter(
     (i) => typeof i.productId === 'string' && Number.isInteger(i.quantity) && i.quantity > 0 && i.quantity <= 20
   );
   if (items.length === 0 || items.length > 20) return errorResponse('Cart is empty or invalid');
+  const redeemPoints = body?.redeemPoints ?? 0;
 
   const ids = items.map((i) => i.productId);
   const placeholders = ids.map(() => '?').join(',');
@@ -72,14 +75,47 @@ export async function createCheckout(req: Request, rc: RequestContext): Promise<
   const totalQty = items.reduce((n, i) => n + i.quantity, 0);
   const freeShipping = subtotal >= FREE_SHIPPING_THRESHOLD;
 
-  // "Any 3+ items — 15% off" bundle discount, applied automatically.
-  let discounts: { coupon: string }[] | undefined;
-  if (totalQty >= BUNDLE_MIN_QTY) {
-    try {
-      discounts = [{ coupon: await ensureCoupon(rc.env, BUNDLE_COUPON.id, BUNDLE_COUPON.percentOff, BUNDLE_COUPON.name) }];
-    } catch (err) {
-      console.error('Bundle coupon unavailable, continuing without discount:', err);
+  // Board Certification points: validated here, deducted by the webhook once
+  // the payment actually lands (abandoned carts never touch the balance).
+  let pointsValue = 0;
+  if (redeemPoints) {
+    if (!user) return errorResponse('Sign in to redeem points');
+    if (!Number.isInteger(redeemPoints) || redeemPoints < REDEEM_BLOCK || redeemPoints % REDEEM_BLOCK !== 0) {
+      return errorResponse(`Points are redeemed in blocks of ${REDEEM_BLOCK}`);
     }
+    const balance = await rc.env.DB.prepare(
+      'SELECT COALESCE(SUM(delta), 0) AS points FROM points_ledger WHERE user_id = ?'
+    )
+      .bind(user.id)
+      .first<{ points: number }>();
+    if ((balance?.points ?? 0) < redeemPoints) return errorResponse('Not enough points for that redemption');
+    pointsValue = Math.min(redeemPoints * POINT_VALUE_CENTS, subtotal - 50); // leave ≥ $0.50 for Stripe's minimum
+    if (pointsValue <= 0) return errorResponse('Cart is too small to redeem points on');
+  }
+
+  // "Any 3+ items — 15% off" bundle discount, applied automatically. When
+  // points are in play, Stripe allows only one discount — fold both into a
+  // single one-off amount coupon.
+  let discounts: { coupon: string }[] | undefined;
+  const bundleApplies = totalQty >= BUNDLE_MIN_QTY;
+  try {
+    if (pointsValue > 0) {
+      const bundleAmount = bundleApplies ? Math.round((subtotal * BUNDLE_COUPON.percentOff) / 100) : 0;
+      const oneOff = await stripeRequest<{ id: string }>(rc.env, 'POST', '/v1/coupons', {
+        amount_off: pointsValue + bundleAmount,
+        currency: 'usd',
+        duration: 'once',
+        name: bundleApplies
+          ? `${redeemPoints} pts + bundle 15% off`
+          : `${redeemPoints} Board Certification points`,
+      });
+      discounts = [{ coupon: oneOff.id }];
+    } else if (bundleApplies) {
+      discounts = [{ coupon: await ensureCoupon(rc.env, BUNDLE_COUPON.id, BUNDLE_COUPON.percentOff, BUNDLE_COUPON.name) }];
+    }
+  } catch (err) {
+    if (pointsValue > 0) throw err; // never silently sell without the promised discount
+    console.error('Bundle coupon unavailable, continuing without discount:', err);
   }
 
   // Compact cart stored in metadata (< 500 chars) so the webhook can build the order.
@@ -123,6 +159,7 @@ export async function createCheckout(req: Request, rc: RequestContext): Promise<
       kind: 'order',
       cart: cartMeta,
       ...(user ? { user_id: user.id } : {}),
+      ...(pointsValue > 0 ? { redeem_points: String(redeemPoints) } : {}),
     },
   });
 

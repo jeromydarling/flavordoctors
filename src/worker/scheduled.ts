@@ -2,10 +2,11 @@ import type { Env } from './types';
 import { sendEmail, refillReminderEmail, winBackEmail, dropOpenEmail } from './lib/email';
 import { sendMarketingEmail } from './lib/marketing';
 import { committedByProduct, onHandByProduct } from './lib/inventory';
+import { npsSig } from './routes/nps';
 
 const SITE_URL = 'https://flavordoctors.com';
 
-/** Nightly cron: lifecycle flows, refill reminders, win-backs, drop notifications, low-stock alerts. */
+/** Nightly cron: lifecycle flows, refill reminders, win-backs, drop + restock notifications, low-stock alerts, NPS pulse. */
 export async function runScheduled(env: Env): Promise<void> {
   const results = await Promise.allSettled([
     runFlows(env),
@@ -13,10 +14,74 @@ export async function runScheduled(env: Env): Promise<void> {
     winBacks(env),
     dropNotifications(env),
     lowStockAlerts(env),
+    restockNotifications(env),
+    npsPulse(env),
   ]);
   for (const r of results) {
     if (r.status === 'rejected') console.error('Scheduled job failed:', r.reason);
   }
+}
+
+/** Back-in-stock: alert signups whose product is active and back above zero. */
+async function restockNotifications(env: Env): Promise<void> {
+  const { results } = await env.DB.prepare(
+    `SELECT a.email, a.product_id, p.name, p.slug FROM restock_alerts a
+     JOIN products p ON p.id = a.product_id
+     JOIN (SELECT product_id, SUM(delta) AS on_hand FROM inventory_moves GROUP BY product_id) inv
+       ON inv.product_id = a.product_id
+     WHERE a.notified = 0 AND p.is_active = 1 AND inv.on_hand > 0
+     LIMIT 50`
+  ).all<{ email: string; product_id: string; name: string; slug: string }>();
+
+  for (const row of results) {
+    await sendEmail(
+      env,
+      row.email,
+      `Back in stock: ${row.name}`,
+      `<h2>Your prescription is ready for pickup</h2><p><strong>${row.name}</strong> is back on the shelf — and these batches have a habit of disappearing.</p><p><a href="${SITE_URL}/product/${row.slug}" style="color:#27AE60;font-weight:bold;">Fill it now →</a></p>`
+    );
+    await env.DB.prepare('UPDATE restock_alerts SET notified = 1 WHERE email = ? AND product_id = ?')
+      .bind(row.email, row.product_id)
+      .run();
+  }
+  if (results.length > 0) console.log(`Restock notifications sent: ${results.length}`);
+}
+
+/** Day-7 NPS pulse: one question, one click, one email per order. */
+async function npsPulse(env: Env): Promise<void> {
+  const { results } = await env.DB.prepare(
+    `SELECT o.id, o.email FROM orders o
+     WHERE o.email IS NOT NULL AND o.status IN ('paid', 'shipped', 'delivered')
+       AND o.created_at <= datetime('now', '-7 days')
+       AND o.created_at > datetime('now', '-14 days')
+       AND NOT EXISTS (SELECT 1 FROM sent_emails se WHERE se.email = o.email AND se.kind = 'nps' AND se.ref = o.id)
+       AND NOT EXISTS (SELECT 1 FROM sent_emails se2 WHERE se2.email = o.email AND se2.kind = 'nps'
+                       AND se2.created_at > datetime('now', '-60 days'))
+     LIMIT 25`
+  ).all<{ id: string; email: string }>();
+
+  for (const row of results) {
+    const sig = await npsSig(env, row.id, row.email);
+    const link = (s: number) =>
+      `${SITE_URL}/nps?o=${encodeURIComponent(row.id)}&e=${encodeURIComponent(row.email)}&s=${s}&sig=${sig}`;
+    const buttons = Array.from({ length: 11 }, (_, s) => {
+      const color = s <= 6 ? '#c0392b' : s <= 8 ? '#F5A623' : '#27AE60';
+      return `<a href="${link(s)}" style="display:inline-block;width:34px;line-height:34px;text-align:center;margin:2px;background:${color};color:#fff;font-weight:bold;border-radius:6px;text-decoration:none">${s}</a>`;
+    }).join('');
+    await sendEmail(
+      env,
+      row.email,
+      'Quick check-up: how did the treatment go?',
+      `<h2>One-question follow-up visit</h2>
+       <p>Your order arrived about a week ago. On a scale of 0–10, how likely are you to recommend Flavor Doctors to a friend with chronically boring dinners?</p>
+       <div style="margin:16px 0">${buttons}</div>
+       <p style="color:#777;font-size:13px">0 = never · 10 = already texting them about it. One tap is all it takes.</p>`
+    );
+    await env.DB.prepare("INSERT OR IGNORE INTO sent_emails (email, kind, ref) VALUES (?, 'nps', ?)")
+      .bind(row.email, row.id)
+      .run();
+  }
+  if (results.length > 0) console.log(`NPS pulses sent: ${results.length}`);
 }
 
 /**

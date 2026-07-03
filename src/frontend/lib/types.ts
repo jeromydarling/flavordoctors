@@ -12,6 +12,7 @@ export interface Product {
   isDrop?: boolean;
   dropStartsAt?: string | null;
   dropStock?: number | null;
+  inStock?: boolean;
 }
 
 export interface Drop {
@@ -41,6 +42,12 @@ export interface LoyaltyInfo {
   points: number;
   tier: { key: string; name: string };
   nextTier: { key: string; name: string; pointsNeeded: number } | null;
+  redemption?: {
+    block: number;
+    blockValueCents: number;
+    redeemablePoints: number;
+    redeemableValueCents: number;
+  };
 }
 
 export const CADENCES = [
@@ -88,6 +95,7 @@ export interface Subscription {
   cadence: string;
   cadenceLabel: string;
   status: string;
+  cancelAtPeriodEnd?: boolean;
   items: string[];
   nextBillingDate: string | null;
 }

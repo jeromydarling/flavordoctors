@@ -36,7 +36,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (email: string, password: string) => {
-    const d = await api.post<{ user: User }>('/api/auth/register', { email, password });
+    const ref = localStorage.getItem('fd_ref') ?? undefined;
+    const d = await api.post<{ user: User }>('/api/auth/register', { email, password, ref });
+    if (ref) localStorage.removeItem('fd_ref');
     setUser(d.user);
   };
 

@@ -231,7 +231,7 @@ export const deactivatePromotion = requireAdmin(async (_req, rc) => {
 
 export const analytics = requireStaff(async (_req, rc) => {
   const db = rc.env.DB;
-  const [subs, orders30, ordersAll, repeat, topProducts, contacts, ratings, reviews] = await Promise.all([
+  const [subs, orders30, ordersAll, repeat, topProducts, contacts, ratings, reviews, nps, saveOffers] = await Promise.all([
     db.prepare("SELECT tier, cadence, COUNT(*) AS n FROM subscriptions WHERE status IN ('active','past_due','paused') GROUP BY tier, cadence").all<{ tier: string; cadence: string; n: number }>(),
     db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(total),0) AS revenue FROM orders WHERE status != 'canceled' AND created_at > datetime('now','-30 days')").first<{ n: number; revenue: number }>(),
     db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(total),0) AS revenue FROM orders WHERE status != 'canceled'").first<{ n: number; revenue: number }>(),
@@ -240,6 +240,12 @@ export const analytics = requireStaff(async (_req, rc) => {
     db.prepare('SELECT COUNT(*) AS total, SUM(marketing_consent) AS consented FROM contacts').first<{ total: number; consented: number }>(),
     db.prepare('SELECT COUNT(*) AS n, AVG(rating) AS avg FROM product_ratings').first<{ n: number; avg: number | null }>(),
     db.prepare('SELECT COUNT(*) AS approved FROM product_reviews WHERE approved = 1').first<{ approved: number }>(),
+    db.prepare(
+      'SELECT COUNT(*) AS n, SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END) AS promoters, SUM(CASE WHEN score <= 6 THEN 1 ELSE 0 END) AS detractors FROM nps_responses'
+    ).first<{ n: number; promoters: number | null; detractors: number | null }>(),
+    db.prepare(
+      "SELECT SUM(CASE WHEN action = 'cancel' THEN 1 ELSE 0 END) AS cancels, SUM(CASE WHEN action IN ('discount','pause','skip','undo_cancel') THEN 1 ELSE 0 END) AS saves FROM save_offer_events"
+    ).first<{ cancels: number | null; saves: number | null }>(),
   ]);
 
   let mrr = 0;
@@ -279,6 +285,14 @@ export const analytics = requireStaff(async (_req, rc) => {
     repeatRate: Math.round(repeatRate * 100),
     topProducts: topProducts.results,
     contacts: contacts,
+    nps: {
+      responses: nps?.n ?? 0,
+      score:
+        (nps?.n ?? 0) > 0 ? Math.round((((nps!.promoters ?? 0) - (nps!.detractors ?? 0)) / nps!.n) * 100) : null,
+      promoters: nps?.promoters ?? 0,
+      detractors: nps?.detractors ?? 0,
+    },
+    saveOffers: { cancels: saveOffers?.cancels ?? 0, saves: saveOffers?.saves ?? 0 },
     scorecard,
   });
 });

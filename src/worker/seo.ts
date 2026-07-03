@@ -227,16 +227,28 @@ Sitemap: ${origin}/sitemap.xml
 }
 
 export async function sitemapXml(env: Env, origin: string): Promise<Response> {
-  const { results } = await env.DB.prepare(
-    'SELECT slug, created_at FROM products WHERE is_active = 1 ORDER BY collection, name'
-  ).all<{ slug: string; created_at: string }>();
+  const [{ results }, recipes] = await Promise.all([
+    env.DB.prepare('SELECT slug, created_at FROM products WHERE is_active = 1 ORDER BY collection, name').all<{
+      slug: string;
+      created_at: string;
+    }>(),
+    env.DB.prepare('SELECT slug, created_at FROM recipes WHERE is_published = 1 ORDER BY created_at DESC').all<{
+      slug: string;
+      created_at: string;
+    }>(),
+  ]);
 
   const staticUrls = Object.keys(STATIC_ROUTES).filter((p) => p !== '/login');
   const entries = [
     ...staticUrls.map((p) => `  <url><loc>${origin}${p}</loc></url>`),
+    `  <url><loc>${origin}/treatment-plans</loc></url>`,
     ...results.map(
       (r) =>
         `  <url><loc>${origin}/product/${r.slug}</loc><lastmod>${r.created_at.slice(0, 10)}</lastmod></url>`
+    ),
+    ...recipes.results.map(
+      (r) =>
+        `  <url><loc>${origin}/treatment-plans/${r.slug}</loc><lastmod>${r.created_at.slice(0, 10)}</lastmod></url>`
     ),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

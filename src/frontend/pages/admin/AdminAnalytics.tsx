@@ -15,6 +15,8 @@ interface Analytics {
   repeatRate: number;
   topProducts: { name: string; units: number }[];
   contacts: { total: number; consented: number } | null;
+  nps: { responses: number; score: number | null; promoters: number; detractors: number };
+  saveOffers: { cancels: number; saves: number };
   scorecard: { metric: string; target: string; value: string; met: boolean }[];
 }
 
@@ -42,6 +44,11 @@ export function AdminAnalytics() {
     { label: 'Average order value', value: formatPrice(data.aov) },
     { label: 'Repeat purchase rate', value: `${data.repeatRate}%` },
     { label: 'Email contacts (consented)', value: `${data.contacts?.consented ?? 0} / ${data.contacts?.total ?? 0}` },
+    {
+      label: `NPS (${data.nps?.responses ?? 0} responses)`,
+      value: data.nps?.score === null || data.nps === undefined ? '—' : String(data.nps.score),
+    },
+    { label: 'Cancel-flow saves', value: `${data.saveOffers?.saves ?? 0} saved / ${data.saveOffers?.cancels ?? 0} canceled` },
   ];
 
   return (

@@ -82,6 +82,16 @@ Subscription-based e-commerce for a small-batch sauce & seasoning brand, built e
 - **Root allowlist** — emails in the `ADMIN_EMAILS` var are re-promoted to admin at every login and can never be locked out (marked 🔑 owner in the roster).
 - **Audit trail** — role changes, campaign sends, promo create/deactivate, product create/update/delete, order status changes, points grants, and one-off customer emails are logged to `audit_log` (who, what, target, detail) and shown on the Staff page.
 
+## Growth & retention features (wave 2)
+
+- **Points redemption** — Board Certification points are worth 1¢ each, redeemed in 500-point ($5) blocks from the cart drawer. Validated at checkout, deducted by the webhook only when payment lands (abandoned carts never touch the balance); combines with the 3+ bundle discount via a one-off Stripe coupon.
+- **Refer a Patient** — every account gets a share link in My Chart (`/?ref=CODE`, captured in localStorage and attached at registration). When the referred friend's first order is paid, both sides earn 500 points, idempotently. The older 3-signup → 15% code email flow still runs alongside.
+- **Cancel-flow save offers** — an in-app Cancel button opens the save ladder (skip next box → pause 2 months → one-time 20%-off-next-box coupon → cancel at period end with undo). Every choice is tracked in `save_offer_events` and reported as "saves vs cancels" in Analytics.
+- **One-click reorder** — "Refill this order" on any past order reloads its items into the cart.
+- **Back-in-stock alerts** — tracked SKUs that hit zero flip the product page to a notify-me form (`restock_alerts`); the nightly cron emails signups when the ledger goes positive again.
+- **Treatment Plans** (`/treatment-plans`) — the SEO recipe hub: AI-drafted in the Content Studio (template fallback offline), server-rendered with Recipe JSON-LD, listed in the sitemap, cross-linked from product pages, each ending in a "Fill this prescription" CTA.
+- **NPS pulse** — one-question 0–10 email a week after delivery (HMAC-signed one-click links). Detractors (≤6) auto-open a ticket in the support inbox; promoters (≥9) are nudged to review + refer. NPS score shows in Analytics.
+
 ## Growth & retention features
 
 - **Skip / Pause / Resume** — one-click from My Chart (`pause_collection` on Stripe); paused status synced via webhook.
@@ -263,7 +273,9 @@ require `is_admin`, granted via the `ADMIN_EMAILS` allowlist.
 ```
 POST /api/auth/register | login | logout      GET /api/auth/me
 POST /api/auth/forgot | reset                 GET|PUT /api/account/settings
-POST /api/account/password | delete
+POST /api/account/password | delete           GET /api/account/referral
+POST /api/account/subscription/save-offer | cancel
+POST /api/products/:id/restock-alert          GET /treatment-plans[/:slug]  GET /nps
 GET  /api/products[?collection=]              GET /api/products/:slug
 POST /api/quiz                                POST /api/pharmacist
 GET  /api/drops                               POST /api/drops/:id/waitlist
@@ -279,6 +291,8 @@ GET  /api/admin/orders                        PUT /api/admin/orders/:id
 GET  /api/admin/staff                         POST /api/admin/staff/role
 GET  /api/admin/inventory                     POST /api/admin/inventory/receive | adjust
 PUT  /api/admin/inventory/:id/reorder-point
+GET|POST /api/admin/recipes                   POST /api/admin/recipes/generate
+POST /api/admin/recipes/:id/publish           DELETE /api/admin/recipes/:id
 POST /api/webhooks/stripe                     GET /images/products/{slug}/hero.png
 ```
 

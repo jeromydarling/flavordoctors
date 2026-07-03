@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
-import type { FlavorProfile, LoyaltyInfo, Order, Subscription } from '../lib/types';
+import type { FlavorProfile, LoyaltyInfo, Order, Product, Subscription } from '../lib/types';
 import { formatPrice } from '../lib/types';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { PageSpinner } from '../components/Protected';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -24,6 +25,43 @@ const TIER_EMOJI: Record<string, string> = {
   attending: '⚕️',
   chief: '🏆',
 };
+
+function ReferralCard() {
+  const [data, setData] = useState<{ code: string; url: string; signups: number; converted: number; pointsEarned: number } | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    api.get<typeof data>('/api/account/referral').then(setData).catch(() => {});
+  }, []);
+  if (!data) return null;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(data.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable — the link is visible to copy by hand.
+    }
+  };
+  return (
+    <section className="mt-10">
+      <h2 className="text-3xl font-bold">Refer a Patient</h2>
+      <div className="rx-card mt-4">
+        <p className="text-medical/80">
+          Send a friend to the clinic. When they fill their first prescription, <strong className="text-gold">you both earn 500 points</strong> (worth $5).
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <code className="rounded-lg bg-navy px-3 py-2 text-sm text-gold">{data.url}</code>
+          <button className="btn-rx !px-4 !py-2 !text-sm" onClick={copy}>
+            {copied ? 'Copied ✓' : 'Copy link'}
+          </button>
+        </div>
+        <p className="mt-3 text-sm text-medical/60">
+          {data.signups} referred · {data.converted} became patients · {data.pointsEarned} pts earned
+        </p>
+      </div>
+    </section>
+  );
+}
 
 function AccountSettings() {
   const { logout } = useAuth();
@@ -236,6 +274,7 @@ function SupportTickets() {
 
 export function Account() {
   const { user } = useAuth();
+  const cart = useCart();
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null | undefined>(undefined);
   const [loyalty, setLoyalty] = useState<LoyaltyInfo | null>(null);
@@ -245,6 +284,8 @@ export function Account() {
   const [subBusy, setSubBusy] = useState(false);
   const [subMessage, setSubMessage] = useState<string | null>(null);
   const [pausePick, setPausePick] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [refillMsg, setRefillMsg] = useState<string | null>(null);
   const [reviewFor, setReviewFor] = useState<{ productId: string; name: string; rating: number } | null>(null);
   const [reviewText, setReviewText] = useState('');
   const [reviewMsg, setReviewMsg] = useState<string | null>(null);
@@ -288,6 +329,28 @@ export function Account() {
     }
   };
 
+  // One-click reorder: reload a past order's items into the cart.
+  const refillOrder = async (order: Order) => {
+    setRefillMsg(null);
+    try {
+      const { products } = await api.get<{ products: Product[] }>('/api/products');
+      const byId = new Map(products.map((p) => [p.id, p]));
+      let added = 0;
+      for (const item of order.items) {
+        const product = byId.get(item.productId);
+        if (product) {
+          cart.add(product, item.quantity);
+          added++;
+        }
+      }
+      if (added < order.items.length) {
+        setRefillMsg(`Refill loaded — ${added} of ${order.items.length} items are still available.`);
+      }
+    } catch {
+      setRefillMsg('Could not load that refill — try again.');
+    }
+  };
+
   const rate = async (productId: string, rating: number) => {
     setRatings((prev) => ({ ...prev, [productId]: rating }));
     try {
@@ -309,6 +372,9 @@ export function Account() {
             <p className="text-2xl">{TIER_EMOJI[loyalty.tier.key] ?? '🩹'}</p>
             <p className="font-heading text-lg font-black text-gold">{loyalty.tier.name}</p>
             <p className="text-sm text-medical/60">{loyalty.points} pts</p>
+            {(loyalty.redemption?.redeemableValueCents ?? 0) > 0 && (
+              <p className="text-xs font-bold text-rx">worth {formatPrice(loyalty.redemption!.redeemableValueCents)} at checkout</p>
+            )}
             {loyalty.nextTier && (
               <p className="mt-1 text-xs text-medical/60">
                 {loyalty.nextTier.pointsNeeded} pts to {loyalty.nextTier.name}
@@ -412,7 +478,31 @@ export function Account() {
               <button className="btn-outline !py-2 !text-base" onClick={openPortal} disabled={portalBusy}>
                 {portalBusy ? 'Opening…' : 'Manage Billing'}
               </button>
+              {['active', 'past_due'].includes(subscription.status) && !subscription.cancelAtPeriodEnd && (
+                <button
+                  className="!py-2 text-sm text-medical/50 underline hover:text-red-300"
+                  disabled={subBusy}
+                  onClick={() => setCancelOpen(true)}
+                >
+                  Cancel…
+                </button>
+              )}
             </div>
+            {subscription.cancelAtPeriodEnd && (
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-gold/40 p-4 text-sm">
+                <p className="text-gold">
+                  ⚠️ Cancellation scheduled — your box stays active until{' '}
+                  {subscription.nextBillingDate ? new Date(subscription.nextBillingDate).toLocaleDateString() : 'the end of this period'}, then closes.
+                </p>
+                <button
+                  className="btn-gold !px-4 !py-2 !text-sm"
+                  disabled={subBusy}
+                  onClick={() => subAction('/api/account/subscription/cancel', { undo: true }, 'Cancellation reversed — welcome back, patient.')}
+                >
+                  Undo cancellation
+                </button>
+              </div>
+            )}
             {pausePick && (
               <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-navy-lighter p-4">
                 <span className="font-bold">Pause for:</span>
@@ -431,6 +521,65 @@ export function Account() {
           </div>
         )}
       </section>
+
+      {/* Cancel-flow save offers */}
+      {cancelOpen && subscription && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-label="Cancel subscription">
+          <div className="w-full max-w-md rounded-xl border-2 border-navy-lighter bg-navy-light p-6">
+            <h3 className="text-2xl font-bold">Before you check out…</h3>
+            <p className="mt-1 text-sm text-medical/60">Pick the treatment that actually fits. All of these keep your points and first-box pricing intact.</p>
+            <div className="mt-4 space-y-2">
+              <button
+                className="w-full rounded-lg border-2 border-navy-lighter p-3 text-left hover:border-rx"
+                disabled={subBusy}
+                onClick={() => {
+                  setCancelOpen(false);
+                  subAction('/api/account/subscription/skip', undefined, 'Next box skipped — no charge next cycle.');
+                }}
+              >
+                <strong>Skip the next box</strong>
+                <span className="block text-sm text-medical/60">Shelf still full? One cycle off, zero commitment.</span>
+              </button>
+              <button
+                className="w-full rounded-lg border-2 border-navy-lighter p-3 text-left hover:border-rx"
+                disabled={subBusy}
+                onClick={() => {
+                  setCancelOpen(false);
+                  subAction('/api/account/subscription/pause', { months: 2 }, "Paused for 2 months. We'll be here when you're hungry again.");
+                }}
+              >
+                <strong>Pause for 2 months</strong>
+                <span className="block text-sm text-medical/60">Take a breather; billing resumes automatically.</span>
+              </button>
+              <button
+                className="w-full rounded-lg border-2 border-gold/50 p-3 text-left hover:border-gold"
+                disabled={subBusy}
+                onClick={() => {
+                  setCancelOpen(false);
+                  subAction('/api/account/subscription/save-offer', undefined, '20% off your next box — applied. Thanks for staying.');
+                }}
+              >
+                <strong className="text-gold">Take 20% off your next box</strong>
+                <span className="block text-sm text-medical/60">A one-time thank-you for sticking with the program.</span>
+              </button>
+              <button
+                className="w-full rounded-lg border border-red-400/40 p-3 text-left text-red-300 hover:border-red-400"
+                disabled={subBusy}
+                onClick={() => {
+                  setCancelOpen(false);
+                  subAction('/api/account/subscription/cancel', undefined, 'Cancellation scheduled. Your box stays active until the period ends — undo anytime before then.');
+                }}
+              >
+                <strong>Cancel my subscription</strong>
+                <span className="block text-sm text-red-300/70">Stays active until the current period ends. You can undo.</span>
+              </button>
+            </div>
+            <button className="btn-outline mt-4 w-full !py-2 !text-sm" onClick={() => setCancelOpen(false)}>
+              Never mind — keep my box
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Review composer */}
       {reviewFor && (
@@ -470,6 +619,9 @@ export function Account() {
         </div>
       )}
 
+      {/* Refer a Patient */}
+      <ReferralCard />
+
       {/* Support tickets */}
       <SupportTickets />
 
@@ -477,6 +629,7 @@ export function Account() {
       <section className="mt-12">
         <h2 className="text-3xl font-bold">Order History</h2>
         <p className="mt-1 text-sm text-medical/60">Rate each treatment — it sharpens your future prescriptions.</p>
+        {refillMsg && <p className="mt-2 rounded bg-rx/10 p-2 text-sm font-semibold text-rx">{refillMsg}</p>}
         {orders === null ? (
           <PageSpinner />
         ) : orders.length === 0 ? (
@@ -491,6 +644,9 @@ export function Account() {
                     <p className="text-sm text-medical/60">{new Date(o.createdAt).toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-3">
+                    <button className="btn-outline !px-3 !py-1 !text-xs" onClick={() => refillOrder(o)}>
+                      🔄 Refill this order
+                    </button>
                     <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${STATUS_STYLES[o.status] ?? 'bg-medical/10'}`}>
                       {o.status}
                     </span>

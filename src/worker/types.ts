@@ -85,6 +85,7 @@ export interface SubscriptionRow {
   cadence: string;
   items_json: string | null;
   next_billing_date: string | null;
+  cancel_at_period_end: number;
   created_at: string;
 }
 
@@ -133,6 +134,12 @@ export const BUNDLE_MIN_QTY = 3;
 export const BUNDLE_COUPON = { id: 'FD_ANY3_15', percentOff: 15, name: 'Any 3+ items — 15% off' };
 export const FIRST_BOX_COUPON = { id: 'FD_FIRST_BOX_20', percentOff: 20, name: 'First Rx Box — 20% off' };
 export const DROP_EARLY_ACCESS_MS = 48 * 3600 * 1000;
+// Board Certification redemption: points are worth 1¢ each, spent in
+// 500-point blocks ($5). Earn rate is 1 pt/$1 → ~1% payback.
+export const POINT_VALUE_CENTS = 1;
+export const REDEEM_BLOCK = 500;
+// Both sides of a referral earn this when the referred friend's first order is paid.
+export const REFERRAL_POINTS = 500;
 
 export interface AuthUser {
   id: string;
