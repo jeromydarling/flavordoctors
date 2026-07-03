@@ -33,7 +33,7 @@ jobs:
       - run: npm run build
       - name: Prepare offline local stack
         run: |
-          printf 'JWT_SECRET=ci-e2e-secret\nSTRIPE_SECRET_KEY=sk_test_dummy\nSTRIPE_WEBHOOK_SECRET=whsec_dummy\n' > .dev.vars
+          printf 'JWT_SECRET=ci-e2e-secret\nSTRIPE_SECRET_KEY=sk_test_dummy\nSTRIPE_WEBHOOK_SECRET=whsec_dummy\nE2E_EXPOSE_TOKENS=1\n' > .dev.vars
           # The AI binding needs remote credentials; tests assert the graceful fallbacks.
           sed -i 's/^\[ai\]/#[ai]/; s/^binding = "AI"/#binding = "AI"/' wrangler.toml
           npx wrangler d1 migrations apply flavordoctors-db --local

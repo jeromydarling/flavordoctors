@@ -24,6 +24,9 @@ import { AdminContent } from './pages/admin/AdminContent';
 import { AdminCustomers } from './pages/admin/AdminCustomers';
 import { AdminInbox } from './pages/admin/AdminInbox';
 import { AdminStaff } from './pages/admin/AdminStaff';
+import { AdminInventory } from './pages/admin/AdminInventory';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 
 const ROUTE_TITLES: Record<string, string> = {
   '/': 'Flavor Doctors — Prescription-Strength Flavor, Small-Batch Sauces & Seasonings',
@@ -64,6 +67,8 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/faq" element={<Faq />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/checkout/:result" element={<CheckoutResult />} />
         <Route
           path="/account"
@@ -159,6 +164,14 @@ export default function App() {
             <RequireAdmin>
               <AdminStaff />
             </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/inventory"
+          element={
+            <RequireStaff>
+              <AdminInventory />
+            </RequireStaff>
           }
         />
         <Route

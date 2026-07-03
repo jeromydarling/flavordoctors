@@ -25,6 +25,183 @@ const TIER_EMOJI: Record<string, string> = {
   chief: '🏆',
 };
 
+function AccountSettings() {
+  const { logout } = useAuth();
+  const [settings, setSettings] = useState<{ email: string; name: string; marketingConsent: boolean } | null>(null);
+  const [name, setName] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [pw, setPw] = useState({ current: '', next: '' });
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const [deletePw, setDeletePw] = useState('');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api
+      .get<{ email: string; name: string; marketingConsent: boolean }>('/api/account/settings')
+      .then((d) => {
+        setSettings(d);
+        setName(d.name);
+      })
+      .catch(() => {});
+  }, []);
+
+  if (!settings) return null;
+
+  const saveProfile = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api.put('/api/account/settings', { name });
+      setMsg('Saved.');
+    } catch (e) {
+      setMsg(e instanceof ApiError ? e.message : 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleConsent = async () => {
+    const next = !settings.marketingConsent;
+    setSettings({ ...settings, marketingConsent: next });
+    try {
+      await api.put('/api/account/settings', { marketingConsent: next });
+    } catch {
+      setSettings({ ...settings, marketingConsent: !next });
+    }
+  };
+
+  const changePassword = async () => {
+    setBusy(true);
+    setPwMsg(null);
+    try {
+      await api.post('/api/account/password', { currentPassword: pw.current, newPassword: pw.next });
+      setPwMsg('Password updated.');
+      setPw({ current: '', next: '' });
+    } catch (e) {
+      setPwMsg(e instanceof ApiError ? e.message : 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    setBusy(true);
+    setDeleteMsg(null);
+    try {
+      await api.post('/api/account/delete', { password: deletePw });
+      await logout().catch(() => {});
+      window.location.href = '/';
+    } catch (e) {
+      setDeleteMsg(e instanceof ApiError ? e.message : 'Something went wrong');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="mt-12">
+      <h2 className="text-3xl font-bold">Account Settings</h2>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="rx-card !p-5">
+          <h3 className="font-bold">Profile</h3>
+          {msg && <p className="mt-2 rounded bg-rx/10 p-2 text-sm font-semibold text-rx">{msg}</p>}
+          <label htmlFor="settings-name" className="mt-3 block text-sm font-bold">
+            Preferred name
+          </label>
+          <input
+            id="settings-name"
+            className="input mt-1 !py-2"
+            placeholder="How should we address you, Doc?"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button className="btn-rx mt-3 !px-4 !py-2 !text-sm" disabled={busy} onClick={saveProfile}>
+            Save profile
+          </button>
+          <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm">
+            <input type="checkbox" className="h-5 w-5 accent-rx" checked={settings.marketingConsent} onChange={toggleConsent} />
+            <span>
+              <strong>Marketing emails</strong> — new treatments, specials, and the occasional prescription refill
+              reminder.
+            </span>
+          </label>
+        </div>
+
+        <div className="rx-card !p-5">
+          <h3 className="font-bold">Change password</h3>
+          {pwMsg && <p className="mt-2 rounded bg-rx/10 p-2 text-sm font-semibold text-rx">{pwMsg}</p>}
+          <label htmlFor="settings-current-pw" className="mt-3 block text-sm font-bold">
+            Current password
+          </label>
+          <input
+            id="settings-current-pw"
+            type="password"
+            autoComplete="current-password"
+            className="input mt-1 !py-2"
+            value={pw.current}
+            onChange={(e) => setPw({ ...pw, current: e.target.value })}
+          />
+          <label htmlFor="settings-new-pw" className="mt-3 block text-sm font-bold">
+            New password
+          </label>
+          <input
+            id="settings-new-pw"
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            className="input mt-1 !py-2"
+            value={pw.next}
+            onChange={(e) => setPw({ ...pw, next: e.target.value })}
+          />
+          <button
+            className="btn-rx mt-3 !px-4 !py-2 !text-sm"
+            disabled={busy || !pw.current || pw.next.length < 8}
+            onClick={changePassword}
+          >
+            Update password
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border-2 border-red-400/30 p-5">
+        <h3 className="font-bold text-red-300">Danger zone</h3>
+        <p className="mt-1 text-sm text-medical/60">
+          Deleting your account removes your profile, points, ratings, and marketing preferences permanently. Order
+          records are kept for accounting. Cancel any active Rx Box first.
+        </p>
+        {!deleteOpen ? (
+          <button className="mt-3 rounded-lg border border-red-400/40 px-4 py-2 text-sm font-bold text-red-300" onClick={() => setDeleteOpen(true)}>
+            Delete my account…
+          </button>
+        ) : (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {deleteMsg && <p className="w-full rounded bg-red-500/20 p-2 text-sm text-red-300">{deleteMsg}</p>}
+            <input
+              type="password"
+              aria-label="Confirm password to delete account"
+              className="input !w-64 !py-2 !text-sm"
+              placeholder="Confirm your password"
+              value={deletePw}
+              onChange={(e) => setDeletePw(e.target.value)}
+            />
+            <button
+              className="rounded-lg bg-red-500/80 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              disabled={busy || !deletePw}
+              onClick={deleteAccount}
+            >
+              Permanently delete
+            </button>
+            <button className="btn-outline !px-4 !py-2 !text-sm" onClick={() => { setDeleteOpen(false); setDeletePw(''); setDeleteMsg(null); }}>
+              Keep my account
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function SupportTickets() {
   const [tickets, setTickets] = useState<
     { id: string; subject: string; status: string; messages: { role: string; body: string; created_at: string }[] }[]
@@ -357,6 +534,9 @@ export function Account() {
           </div>
         )}
       </section>
+
+      {/* Settings */}
+      <AccountSettings />
     </div>
   );
 }

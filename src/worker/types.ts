@@ -32,6 +32,7 @@ export interface Env {
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;
   RESEND_API_KEY?: string;
+  E2E_EXPOSE_TOKENS?: string; // '1' only in local/CI E2E — returns reset tokens in API responses
 }
 
 export const ROLES = ['customer', 'support', 'admin'] as const;
@@ -44,6 +45,7 @@ export interface UserRow {
   stripe_customer_id: string | null;
   is_admin: number;
   role: Role;
+  name: string | null;
   created_at: string;
 }
 

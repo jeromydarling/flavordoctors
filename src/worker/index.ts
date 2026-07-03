@@ -76,6 +76,15 @@ import {
   moderateReview,
 } from './routes/adminMarketing';
 import { listStaff, setStaffRole } from './routes/adminStaff';
+import { getInventory, receiveStock, adjustStock, setReorderPoint } from './routes/adminInventory';
+import {
+  forgotPassword,
+  resetPassword,
+  changePassword,
+  getSettings,
+  updateSettings,
+  deleteAccount,
+} from './routes/accountSettings';
 import { runScheduled } from './scheduled';
 import { withPageMeta, robotsTxt, sitemapXml, llmsTxt } from './seo';
 import { errorResponse } from './lib/util';
@@ -86,6 +95,13 @@ const router = new Router()
   .post('/api/auth/login', login)
   .post('/api/auth/logout', logout)
   .get('/api/auth/me', me)
+  .post('/api/auth/forgot', forgotPassword)
+  .post('/api/auth/reset', resetPassword)
+  // Account settings
+  .get('/api/account/settings', getSettings)
+  .put('/api/account/settings', updateSettings)
+  .post('/api/account/password', changePassword)
+  .post('/api/account/delete', deleteAccount)
   // Catalog
   .get('/api/products', listProducts)
   .get('/api/products/:slug', getProduct)
@@ -169,6 +185,11 @@ const router = new Router()
   // Staff management (admin only)
   .get('/api/admin/staff', listStaff)
   .post('/api/admin/staff/role', setStaffRole)
+  // Inventory (staff can view; receiving/adjusting is admin only)
+  .get('/api/admin/inventory', getInventory)
+  .post('/api/admin/inventory/receive', receiveStock)
+  .post('/api/admin/inventory/adjust', adjustStock)
+  .put('/api/admin/inventory/:id/reorder-point', setReorderPoint)
   // Stripe webhooks
   .post('/api/webhooks/stripe', stripeWebhook)
   // Product images from R2

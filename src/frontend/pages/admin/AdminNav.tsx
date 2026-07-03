@@ -11,6 +11,7 @@ const tabClass = ({ isActive }: { isActive: boolean }) =>
 const TABS: { to: string; label: string; adminOnly?: boolean }[] = [
   { to: '/admin/products', label: 'Products', adminOnly: true },
   { to: '/admin/orders', label: 'Orders' },
+  { to: '/admin/inventory', label: 'Inventory' },
   { to: '/admin/image-gen', label: 'Image Gen', adminOnly: true },
   { to: '/admin/analytics', label: 'Analytics' },
   { to: '/admin/customers', label: 'Customers' },

@@ -4,6 +4,7 @@ import { json, errorResponse, newId } from '../lib/util';
 import { verifyStripeSignature, stripeRequest } from '../lib/stripe';
 import { sendEmail, orderConfirmationEmail, subscriptionConfirmationEmail } from '../lib/email';
 import { upsertContact } from '../lib/marketing';
+import { consumeStock } from '../lib/inventory';
 import { defaultBoxItems } from './products';
 import type { Env } from '../types';
 
@@ -66,6 +67,23 @@ export async function stripeWebhook(req: Request, rc: RequestContext): Promise<R
           )
             .bind(new Date(periodEnd * 1000).toISOString(), subId)
             .run();
+        }
+        // Renewal boxes ship out of inventory (the first box is consumed at
+        // checkout, so skip the subscription_create invoice).
+        if (subId && invoice.billing_reason && invoice.billing_reason !== 'subscription_create') {
+          const box = await rc.env.DB.prepare(
+            'SELECT items_json FROM subscriptions WHERE stripe_subscription_id = ?'
+          )
+            .bind(subId)
+            .first<{ items_json: string }>();
+          if (box) {
+            try {
+              const items = JSON.parse(box.items_json) as string[];
+              await consumeStock(rc.env, 'subscription', invoice.id, items.map((id) => ({ productId: id, qty: 1 })));
+            } catch (err) {
+              console.error('Renewal inventory consume failed:', err);
+            }
+          }
         }
         // Loyalty: 1 point per $ on subscription invoices.
         if (subId && invoice.amount_paid > 0) {
@@ -155,6 +173,14 @@ async function createOrderFromSession(rc: RequestContext, session: Record<string
   }
   await rc.env.DB.batch(statements);
 
+  // Ship the order out of inventory, FEFO. Idempotent per order id.
+  await consumeStock(
+    rc.env,
+    'order',
+    orderId,
+    cart.filter((c) => byId.has(c.p)).map((c) => ({ productId: c.p, qty: c.q }))
+  );
+
   if (email) {
     const items = cart.map((c) => ({ name: byId.get(c.p)?.name ?? 'Item', quantity: c.q }));
     rc.ctx.waitUntil(
@@ -196,6 +222,9 @@ async function createSubscriptionFromSession(rc: RequestContext, session: Record
   )
     .bind(newId('s'), userId, stripeSubId, tierKey, cadence, JSON.stringify(items), nextBilling)
     .run();
+
+  // First box ships now; renewals are consumed on invoice.paid (subscription_cycle).
+  await consumeStock(rc.env, 'subscription', session.id, items.map((id) => ({ productId: id, qty: 1 })));
 
   // Loyalty points for the first subscription payment.
   if ((session.amount_total ?? 0) > 0) {

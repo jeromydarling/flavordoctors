@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogoMark } from '../components/Logo';
 
@@ -71,6 +71,13 @@ export function Login() {
             onChange={(e) => setPassword(e.target.value)}
           />
           {mode === 'register' && <p className="mt-1 text-xs text-medical/60">At least 8 characters.</p>}
+          {mode === 'login' && (
+            <p className="mt-1 text-right text-sm">
+              <Link to="/forgot-password" className="text-rx hover:underline">
+                Forgot password?
+              </Link>
+            </p>
+          )}
         </div>
         <button type="submit" className="btn-rx w-full" disabled={busy}>
           {busy ? 'One moment…' : mode === 'login' ? 'Sign In' : 'Create Account'}

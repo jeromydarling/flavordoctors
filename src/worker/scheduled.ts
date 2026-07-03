@@ -1,15 +1,68 @@
 import type { Env } from './types';
 import { sendEmail, refillReminderEmail, winBackEmail, dropOpenEmail } from './lib/email';
 import { sendMarketingEmail } from './lib/marketing';
+import { committedByProduct, onHandByProduct } from './lib/inventory';
 
 const SITE_URL = 'https://flavordoctors.com';
 
-/** Nightly cron: lifecycle flows, refill reminders, win-backs, drop notifications. */
+/** Nightly cron: lifecycle flows, refill reminders, win-backs, drop notifications, low-stock alerts. */
 export async function runScheduled(env: Env): Promise<void> {
-  const results = await Promise.allSettled([runFlows(env), refillReminders(env), winBacks(env), dropNotifications(env)]);
+  const results = await Promise.allSettled([
+    runFlows(env),
+    refillReminders(env),
+    winBacks(env),
+    dropNotifications(env),
+    lowStockAlerts(env),
+  ]);
   for (const r of results) {
     if (r.status === 'rejected') console.error('Scheduled job failed:', r.reason);
   }
+}
+
+/**
+ * SKUs whose available stock (on-hand minus units committed to upcoming
+ * subscription boxes) is at or below the reorder point → one summary email
+ * to the owner, at most once per ISO week. Untracked SKUs (no inventory
+ * moves yet) don't alert.
+ */
+async function lowStockAlerts(env: Env): Promise<void> {
+  const admin = (env.ADMIN_EMAILS ?? '').split(',')[0]?.trim();
+  if (!admin) return;
+
+  const [rows, committed] = await Promise.all([onHandByProduct(env), committedByProduct(env)]);
+  const low = rows
+    .filter((r) => r.on_hand !== null)
+    .map((r) => ({ ...r, committed: committed.get(r.id) ?? 0, available: (r.on_hand ?? 0) - (committed.get(r.id) ?? 0) }))
+    .filter((r) => r.available <= r.reorder_point);
+  if (low.length === 0) return;
+
+  const now = new Date();
+  const week = Math.ceil(((now.getTime() - Date.UTC(now.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
+  const ref = `${now.getUTCFullYear()}-w${week}`;
+  const sent = await env.DB.prepare("SELECT 1 FROM sent_emails WHERE email = ? AND kind = 'low_stock' AND ref = ?")
+    .bind(admin, ref)
+    .first();
+  if (sent) return;
+
+  const list = low
+    .map(
+      (r) =>
+        `<tr><td style="padding:6px 12px">${r.name}</td><td style="padding:6px 12px;text-align:right">${r.on_hand}</td><td style="padding:6px 12px;text-align:right">${r.committed}</td><td style="padding:6px 12px;text-align:right;font-weight:bold;color:${r.available < 0 ? '#c0392b' : '#b8860b'}">${r.available}</td><td style="padding:6px 12px;text-align:right">${r.reorder_point}</td></tr>`
+    )
+    .join('');
+  await sendEmail(
+    env,
+    admin,
+    `Low stock: ${low.length} SKU${low.length === 1 ? '' : 's'} at or below reorder point`,
+    `<h2>Time to call the co-packer</h2>
+     <p>Available = on-hand minus units already committed to upcoming subscription boxes.</p>
+     <table style="border-collapse:collapse"><tr><th style="padding:6px 12px;text-align:left">Product</th><th style="padding:6px 12px">On hand</th><th style="padding:6px 12px">Committed</th><th style="padding:6px 12px">Available</th><th style="padding:6px 12px">Reorder at</th></tr>${list}</table>
+     <p><a href="${SITE_URL}/admin/inventory">Open the inventory board</a></p>`
+  );
+  await env.DB.prepare("INSERT OR IGNORE INTO sent_emails (email, kind, ref) VALUES (?, 'low_stock', ?)")
+    .bind(admin, ref)
+    .run();
+  console.log(`Low-stock alert sent for ${low.length} SKUs (${ref})`);
 }
 
 interface FlowRow {

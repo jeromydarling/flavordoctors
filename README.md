@@ -62,6 +62,19 @@ Subscription-based e-commerce for a small-batch sauce & seasoning brand, built e
 - **Front Desk AI support bot** — second tab in the site chat widget: answers order/shipping/subscription/policy questions grounded in store policies and (for signed-in customers) their own orders and subscription. Escalates to a human ticket when asked or when it can't resolve — and if Workers AI is down, it fails open straight to the ticket form.
 - **Support Inbox** (/admin/inbox) — open/closed ticket queues with full threads (customer + bot transcript + agent), replies emailed to the customer via Email Service, close/reopen. Customers see their ticket threads in My Chart.
 
+## Inventory (admin)
+
+- **Inventory board** (/admin/inventory) — on-hand, committed, available, and reorder point per SKU. On-hand comes from a movement ledger (`inventory_moves`); **committed** is computed from the `items_json` of every live subscription, so you see next month's box demand before it bills. Staff can view; receiving/adjusting is admin-only.
+- **Lots & FEFO** — every co-packer delivery is a lot (code, quantity, best-by, PO ref). Orders and subscription boxes consume the earliest-expiring lot first, so "which lot did this customer get?" is always answerable.
+- **Tracking is opt-in per SKU** — consumption only starts once a SKU has received its first lot; sales before that don't create noise. Start tracking with a receive + cycle-count adjustment.
+- **Low-stock alerts** — the nightly cron emails the owner (first `ADMIN_EMAILS` entry) when available (on-hand − committed) drops to the reorder point, at most once per week.
+
+## Customer account management
+
+- **Password reset** — /forgot-password emails a 1-hour single-use link (tokens stored hashed; the endpoint never reveals whether an email has an account). All outstanding links burn on a successful reset.
+- **Account settings** in My Chart — preferred name, marketing-consent toggle (feeds the same consent flag campaigns check), change password.
+- **Self-service deletion** — password-confirmed; blocked while an Rx Box subscription is live; removes profile, points, ratings, reviews, and marketing contact while keeping order records (anonymized) for accounting.
+
 ## Staff roles & audit trail (admin)
 
 - **Roles** — `customer` (default), `support`, `admin`. Support reps get the customer-facing wing: Orders, Customers, Inbox, Analytics. Admins get everything plus **Staff** (/admin/staff).
@@ -249,6 +262,8 @@ require `is_admin`, granted via the `ADMIN_EMAILS` allowlist.
 
 ```
 POST /api/auth/register | login | logout      GET /api/auth/me
+POST /api/auth/forgot | reset                 GET|PUT /api/account/settings
+POST /api/account/password | delete
 GET  /api/products[?collection=]              GET /api/products/:slug
 POST /api/quiz                                POST /api/pharmacist
 GET  /api/drops                               POST /api/drops/:id/waitlist
@@ -262,8 +277,11 @@ POST /api/admin/products/:id/generate-description
 POST /api/admin/products/:id/generate-image
 GET  /api/admin/orders                        PUT /api/admin/orders/:id
 GET  /api/admin/staff                         POST /api/admin/staff/role
+GET  /api/admin/inventory                     POST /api/admin/inventory/receive | adjust
+PUT  /api/admin/inventory/:id/reorder-point
 POST /api/webhooks/stripe                     GET /images/products/{slug}/hero.png
 ```
 
 Admin routes require the `admin` role; the customer-support wing (`/api/admin/orders`,
-`/api/admin/customers*`, `/api/admin/tickets*`, `/api/admin/analytics`) also accepts `support`.
+`/api/admin/customers*`, `/api/admin/tickets*`, `/api/admin/analytics`, and read-only
+`/api/admin/inventory`) also accepts `support`.
