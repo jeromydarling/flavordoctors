@@ -4,6 +4,7 @@ export interface JwtPayload {
   sub: string; // user id
   email: string;
   adm: boolean;
+  rol?: string; // role — absent on tokens issued before RBAC (adm covers those)
   exp: number; // unix seconds
   iat: number;
 }

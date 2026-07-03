@@ -1,44 +1,40 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const tabClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-lg px-5 py-2 font-bold transition-colors ${
     isActive ? 'bg-rx text-navy' : 'text-medical/70 hover:text-rx'
   }`;
 
+// Which tabs each role can see. Support reps get the customer-facing wing;
+// admins get everything plus staff management.
+const TABS: { to: string; label: string; adminOnly?: boolean }[] = [
+  { to: '/admin/products', label: 'Products', adminOnly: true },
+  { to: '/admin/orders', label: 'Orders' },
+  { to: '/admin/image-gen', label: 'Image Gen', adminOnly: true },
+  { to: '/admin/analytics', label: 'Analytics' },
+  { to: '/admin/customers', label: 'Customers' },
+  { to: '/admin/inbox', label: 'Inbox' },
+  { to: '/admin/marketing', label: 'Marketing', adminOnly: true },
+  { to: '/admin/promos', label: 'Sales & Pages', adminOnly: true },
+  { to: '/admin/content', label: 'Content Studio', adminOnly: true },
+  { to: '/admin/staff', label: 'Staff', adminOnly: true },
+];
+
 export function AdminNav() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   return (
     <div className="mb-8">
       <h1 className="text-4xl font-black">
         Staff Only <span className="text-rx">🩺</span>
       </h1>
       <nav className="mt-4 flex flex-wrap gap-2 rounded-xl border-2 border-navy-lighter bg-navy-light p-2">
-        <NavLink to="/admin/products" className={tabClass}>
-          Products
-        </NavLink>
-        <NavLink to="/admin/orders" className={tabClass}>
-          Orders
-        </NavLink>
-        <NavLink to="/admin/image-gen" className={tabClass}>
-          Image Gen
-        </NavLink>
-        <NavLink to="/admin/analytics" className={tabClass}>
-          Analytics
-        </NavLink>
-        <NavLink to="/admin/customers" className={tabClass}>
-          Customers
-        </NavLink>
-        <NavLink to="/admin/inbox" className={tabClass}>
-          Inbox
-        </NavLink>
-        <NavLink to="/admin/marketing" className={tabClass}>
-          Marketing
-        </NavLink>
-        <NavLink to="/admin/promos" className={tabClass}>
-          Sales & Pages
-        </NavLink>
-        <NavLink to="/admin/content" className={tabClass}>
-          Content Studio
-        </NavLink>
+        {TABS.filter((t) => isAdmin || !t.adminOnly).map((t) => (
+          <NavLink key={t.to} to={t.to} className={tabClass}>
+            {t.label}
+          </NavLink>
+        ))}
       </nav>
     </div>
   );

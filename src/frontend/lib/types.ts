@@ -53,10 +53,13 @@ export const FREE_SHIPPING_THRESHOLD = 4500;
 export const BUNDLE_MIN_QTY = 3;
 export const BUNDLE_PERCENT = 15;
 
+export type Role = 'customer' | 'support' | 'admin';
+
 export interface User {
   id: string;
   email: string;
   isAdmin: boolean;
+  role: Role;
 }
 
 export interface OrderItem {

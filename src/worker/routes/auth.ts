@@ -1,9 +1,9 @@
-import type { RequestContext, UserRow } from '../types';
+import type { RequestContext, UserRow, Role } from '../types';
 import { json, errorResponse, newId, readJson } from '../lib/util';
 import { hashPassword, verifyPassword } from '../lib/password';
 import { upsertContact } from '../lib/marketing';
 import { signJwt } from '../lib/jwt';
-import { authCookie, clearAuthCookie, isAdminEmail, requireAuth } from '../lib/auth';
+import { authCookie, clearAuthCookie, currentRole, isAdminEmail, requireAuth } from '../lib/auth';
 
 interface Credentials {
   email?: string;
@@ -23,13 +23,13 @@ export async function register(req: Request, rc: RequestContext): Promise<Respon
   if (existing) return errorResponse('An account with that email already exists', 409);
 
   const id = newId('u');
-  const isAdmin = isAdminEmail(email, rc.env) ? 1 : 0;
-  await rc.env.DB.prepare('INSERT INTO users (id, email, password_hash, is_admin) VALUES (?, ?, ?, ?)')
-    .bind(id, email, await hashPassword(password), isAdmin)
+  const role: Role = isAdminEmail(email, rc.env) ? 'admin' : 'customer';
+  await rc.env.DB.prepare('INSERT INTO users (id, email, password_hash, is_admin, role) VALUES (?, ?, ?, ?, ?)')
+    .bind(id, email, await hashPassword(password), role === 'admin' ? 1 : 0, role)
     .run();
   rc.ctx.waitUntil(upsertContact(rc.env, email, { source: 'account', userId: id }));
 
-  return sessionResponse(rc, { id, email, isAdmin: isAdmin === 1 });
+  return sessionResponse(rc, { id, email, role });
 }
 
 export async function login(req: Request, rc: RequestContext): Promise<Response> {
@@ -43,14 +43,16 @@ export async function login(req: Request, rc: RequestContext): Promise<Response>
     return errorResponse('Invalid email or password', 401);
   }
 
-  // Keep admin status in sync with the ADMIN_EMAILS allowlist.
-  let isAdmin = user.is_admin === 1;
-  if (!isAdmin && isAdminEmail(email, rc.env)) {
-    await rc.env.DB.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').bind(user.id).run();
-    isAdmin = true;
+  // The ADMIN_EMAILS allowlist is the root of trust: anyone on it is
+  // (re-)promoted to admin at login, so an accidental demotion in the staff
+  // page can never lock the owner out.
+  let role = user.role;
+  if (role !== 'admin' && isAdminEmail(email, rc.env)) {
+    await rc.env.DB.prepare("UPDATE users SET role = 'admin', is_admin = 1 WHERE id = ?").bind(user.id).run();
+    role = 'admin';
   }
 
-  return sessionResponse(rc, { id: user.id, email: user.email, isAdmin });
+  return sessionResponse(rc, { id: user.id, email: user.email, role });
 }
 
 export async function logout(): Promise<Response> {
@@ -58,13 +60,17 @@ export async function logout(): Promise<Response> {
 }
 
 export const me = requireAuth(async (_req, rc) => {
-  return json({ user: rc.user });
+  // The JWT carries the role from login time; report the live DB role so a
+  // promotion or demotion is reflected in the UI without re-login.
+  const role = (await currentRole(rc.env, rc.user!.id)) ?? rc.user!.role;
+  return json({ user: { ...rc.user, role, isAdmin: role === 'admin' } });
 });
 
-async function sessionResponse(
-  rc: RequestContext,
-  user: { id: string; email: string; isAdmin: boolean }
-): Promise<Response> {
-  const token = await signJwt({ sub: user.id, email: user.email, adm: user.isAdmin }, rc.env.JWT_SECRET);
-  return json({ user, token }, 200, { 'Set-Cookie': authCookie(token) });
+async function sessionResponse(rc: RequestContext, user: { id: string; email: string; role: Role }): Promise<Response> {
+  const isAdmin = user.role === 'admin';
+  const token = await signJwt(
+    { sub: user.id, email: user.email, adm: isAdmin, rol: user.role },
+    rc.env.JWT_SECRET
+  );
+  return json({ user: { ...user, isAdmin }, token }, 200, { 'Set-Cookie': authCookie(token) });
 }

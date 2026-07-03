@@ -1,4 +1,4 @@
-import type { Env, AuthUser, RequestContext } from '../types';
+import type { Env, AuthUser, RequestContext, Role } from '../types';
 import { verifyJwt } from './jwt';
 import { errorResponse } from './util';
 import type { Handler } from '../router';
@@ -23,7 +23,8 @@ export async function getAuthUser(req: Request, env: Env): Promise<AuthUser | nu
   if (!token) return null;
   const payload = await verifyJwt(token, env.JWT_SECRET);
   if (!payload) return null;
-  return { id: payload.sub, email: payload.email, isAdmin: payload.adm };
+  const role = (payload.rol as Role | undefined) ?? (payload.adm ? 'admin' : 'customer');
+  return { id: payload.sub, email: payload.email, isAdmin: payload.adm, role };
 }
 
 export function authCookie(token: string, maxAge = 60 * 60 * 24 * 30): string {
@@ -43,11 +44,31 @@ export function requireAuth(handler: Handler): Handler {
   };
 }
 
+/**
+ * The role stored in the JWT is a snapshot from login time. Staff routes
+ * re-read it from the DB so promotions and demotions apply on the next
+ * request, not the next login.
+ */
+export async function currentRole(env: Env, userId: string): Promise<Role | null> {
+  const row = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(userId).first<{ role: Role }>();
+  return row?.role ?? null;
+}
+
+/** Wrap a handler so it requires staff (support rep or admin). */
+export function requireStaff(handler: Handler): Handler {
+  return requireAuth(async (req, rc) => {
+    const role = await currentRole(rc.env, rc.user!.id);
+    if (role !== 'admin' && role !== 'support') return errorResponse('Staff access required', 403);
+    return handler(req, { ...rc, user: { ...rc.user!, role, isAdmin: role === 'admin' } });
+  });
+}
+
 /** Wrap a handler so it requires an admin user. */
 export function requireAdmin(handler: Handler): Handler {
   return requireAuth(async (req, rc) => {
-    if (!rc.user?.isAdmin) return errorResponse('Admin access required', 403);
-    return handler(req, rc);
+    const role = await currentRole(rc.env, rc.user!.id);
+    if (role !== 'admin') return errorResponse('Admin access required', 403);
+    return handler(req, { ...rc, user: { ...rc.user!, role, isAdmin: true } });
   });
 }
 

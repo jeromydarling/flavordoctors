@@ -1,6 +1,7 @@
 import type { SubscriptionRow } from '../types';
 import { json, errorResponse, readJson } from '../lib/util';
-import { requireAdmin } from '../lib/auth';
+import { requireStaff } from '../lib/auth';
+import { audit } from '../lib/audit';
 import { sendEmail } from '../lib/email';
 import { serializeSubscription } from './subscriptions';
 
@@ -58,7 +59,7 @@ const CUSTOMER_AGG_SQL = `
 `;
 
 /** Customer list with lifecycle stages and key metrics. */
-export const listCustomers = requireAdmin(async (req, rc) => {
+export const listCustomers = requireStaff(async (req, rc) => {
   const url = new URL(req.url);
   const search = url.searchParams.get('search')?.trim().toLowerCase() ?? '';
   const where = search ? `WHERE e.email LIKE ?` : '';
@@ -83,7 +84,7 @@ export const listCustomers = requireAdmin(async (req, rc) => {
 });
 
 /** Full customer file: profile, orders, subscription, loyalty, activity, notes, tickets. */
-export const customerDetail = requireAdmin(async (req, rc) => {
+export const customerDetail = requireStaff(async (req, rc) => {
   const email = new URL(req.url).searchParams.get('email')?.trim().toLowerCase();
   if (!email) return errorResponse('email required');
   const db = rc.env.DB;
@@ -131,7 +132,7 @@ export const customerDetail = requireAdmin(async (req, rc) => {
   });
 });
 
-export const addNote = requireAdmin(async (req, rc) => {
+export const addNote = requireStaff(async (req, rc) => {
   const b = await readJson<{ email?: string; body?: string }>(req);
   const email = b?.email?.trim().toLowerCase();
   const noteBody = b?.body?.trim();
@@ -142,7 +143,7 @@ export const addNote = requireAdmin(async (req, rc) => {
   return json({ ok: true });
 });
 
-export const grantPoints = requireAdmin(async (req, rc) => {
+export const grantPoints = requireStaff(async (req, rc) => {
   const b = await readJson<{ email?: string; delta?: number; reason?: string }>(req);
   const email = b?.email?.trim().toLowerCase();
   if (!email || !Number.isInteger(b?.delta) || b!.delta === 0 || Math.abs(b!.delta!) > 5000) {
@@ -150,23 +151,27 @@ export const grantPoints = requireAdmin(async (req, rc) => {
   }
   const user = await rc.env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first<{ id: string }>();
   if (!user) return errorResponse('No registered account for that email — points require an account', 404);
+  // The ledger has UNIQUE(reason, ref) for idempotent order/review credits;
+  // manual grants are intentionally repeatable, so the ref carries a timestamp.
   await rc.env.DB.prepare("INSERT INTO points_ledger (user_id, delta, reason, ref) VALUES (?, ?, 'bonus', ?)")
-    .bind(user.id, b!.delta, `admin:${rc.user!.email}:${b?.reason ?? 'manual'}`.slice(0, 100))
+    .bind(user.id, b!.delta, `admin:${rc.user!.email}:${b?.reason ?? 'manual'}:${Date.now()}`.slice(0, 100))
     .run();
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'points_grant', email, `${b!.delta} pts (${b?.reason ?? 'manual'})`));
   return json({ ok: true });
 });
 
-export const emailCustomer = requireAdmin(async (req, rc) => {
+export const emailCustomer = requireStaff(async (req, rc) => {
   const b = await readJson<{ email?: string; subject?: string; body?: string }>(req);
   const email = b?.email?.trim().toLowerCase();
   if (!email || !b?.subject?.trim() || !b?.body?.trim()) return errorResponse('email, subject, body required');
   await sendEmail(rc.env, email, b.subject.trim(), `<p>${b.body.trim().replace(/\n/g, '</p><p>')}</p>`);
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'customer_email', email, b.subject.trim()));
   return json({ ok: true });
 });
 
 // ---------- Support inbox ----------
 
-export const listTickets = requireAdmin(async (req, rc) => {
+export const listTickets = requireStaff(async (req, rc) => {
   const status = new URL(req.url).searchParams.get('status') ?? 'open';
   const { results } = await rc.env.DB.prepare(
     'SELECT * FROM tickets WHERE status = ? ORDER BY updated_at DESC LIMIT 100'
@@ -177,7 +182,7 @@ export const listTickets = requireAdmin(async (req, rc) => {
   return json({ tickets: results, counts: Object.fromEntries(counts.results.map((c) => [c.status, c.n])) });
 });
 
-export const ticketDetail = requireAdmin(async (_req, rc) => {
+export const ticketDetail = requireStaff(async (_req, rc) => {
   const ticket = await rc.env.DB.prepare('SELECT * FROM tickets WHERE id = ?').bind(rc.params.id).first();
   if (!ticket) return errorResponse('Ticket not found', 404);
   const { results: messages } = await rc.env.DB.prepare(
@@ -188,7 +193,7 @@ export const ticketDetail = requireAdmin(async (_req, rc) => {
   return json({ ticket, messages });
 });
 
-export const replyTicket = requireAdmin(async (req, rc) => {
+export const replyTicket = requireStaff(async (req, rc) => {
   const b = await readJson<{ body?: string }>(req);
   const replyBody = b?.body?.trim();
   if (!replyBody) return errorResponse('body required');
@@ -212,7 +217,7 @@ export const replyTicket = requireAdmin(async (req, rc) => {
   return json({ ok: true });
 });
 
-export const setTicketStatus = requireAdmin(async (req, rc) => {
+export const setTicketStatus = requireStaff(async (req, rc) => {
   const b = await readJson<{ status?: string }>(req);
   if (!b?.status || !['open', 'closed'].includes(b.status)) return errorResponse('status must be open or closed');
   const result = await rc.env.DB.prepare("UPDATE tickets SET status = ?, updated_at = datetime('now') WHERE id = ?")

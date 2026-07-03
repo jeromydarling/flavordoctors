@@ -1,7 +1,8 @@
 import type { OrderRow, ProductRow } from '../types';
 import { COLLECTIONS } from '../types';
 import { json, errorResponse, newId, readJson, slugify } from '../lib/util';
-import { requireAdmin } from '../lib/auth';
+import { requireAdmin, requireStaff } from '../lib/auth';
+import { audit } from '../lib/audit';
 import { generateDescription, generateProductImage } from '../lib/ai';
 import { publicProduct } from './products';
 import { attachItems } from './account';
@@ -76,6 +77,7 @@ export const adminCreateProduct = requireAdmin(async (req, rc) => {
     )
     .run();
   const product = await rc.env.DB.prepare('SELECT * FROM products WHERE id = ?').bind(id).first<ProductRow>();
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'product_create', id, b.name!.trim()));
   return json({ product: adminProduct(product!) }, 201);
 });
 
@@ -102,6 +104,7 @@ export const adminUpdateProduct = requireAdmin(async (req, rc) => {
     )
     .run();
   const product = await rc.env.DB.prepare('SELECT * FROM products WHERE id = ?').bind(existing.id).first<ProductRow>();
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'product_update', existing.id, b.name!.trim()));
   return json({ product: adminProduct(product!) });
 });
 
@@ -109,6 +112,7 @@ export const adminDeleteProduct = requireAdmin(async (_req, rc) => {
   // Soft delete: order_items reference products, so keep the row.
   const result = await rc.env.DB.prepare('UPDATE products SET is_active = 0 WHERE id = ?').bind(rc.params.id).run();
   if (result.meta.changes === 0) return errorResponse('Product not found', 404);
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'product_delete', rc.params.id));
   return json({ ok: true });
 });
 
@@ -134,17 +138,18 @@ export const adminGenerateImage = requireAdmin(async (_req, rc) => {
 
 // --- Orders ---
 
-export const adminListOrders = requireAdmin(async (_req, rc) => {
+export const adminListOrders = requireStaff(async (_req, rc) => {
   const { results } = await rc.env.DB.prepare('SELECT * FROM orders ORDER BY created_at DESC LIMIT 200').all<OrderRow>();
   return json({ orders: await attachItems(rc, results) });
 });
 
-export const adminUpdateOrder = requireAdmin(async (req, rc) => {
+export const adminUpdateOrder = requireStaff(async (req, rc) => {
   const body = await readJson<{ status?: string }>(req);
   if (!body?.status || !ORDER_STATUSES.includes(body.status)) {
     return errorResponse(`status must be one of: ${ORDER_STATUSES.join(', ')}`);
   }
   const result = await rc.env.DB.prepare('UPDATE orders SET status = ? WHERE id = ?').bind(body.status, rc.params.id).run();
   if (result.meta.changes === 0) return errorResponse('Order not found', 404);
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'order_status', rc.params.id, body.status));
   return json({ ok: true });
 });

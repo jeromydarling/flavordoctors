@@ -33,9 +33,13 @@ export function Layout() {
       <NavLink to="/faq" className={navLinkClass} onClick={() => setMobileOpen(false)}>
         FAQ
       </NavLink>
-      {user?.isAdmin && (
-        <NavLink to="/admin/products" className={navLinkClass} onClick={() => setMobileOpen(false)}>
-          Admin
+      {user && (user.role === 'admin' || user.role === 'support') && (
+        <NavLink
+          to={user.role === 'admin' ? '/admin/products' : '/admin/orders'}
+          className={navLinkClass}
+          onClick={() => setMobileOpen(false)}
+        >
+          {user.role === 'admin' ? 'Admin' : 'Staff'}
         </NavLink>
       )}
     </>

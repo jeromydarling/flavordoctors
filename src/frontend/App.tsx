@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { RequireAuth, RequireAdmin } from './components/Protected';
+import { RequireAuth, RequireAdmin, RequireStaff } from './components/Protected';
 import { Home } from './pages/Home';
 import { Menu } from './pages/Menu';
 import { ProductPage } from './pages/Product';
@@ -23,6 +23,7 @@ import { AdminPromos } from './pages/admin/AdminPromos';
 import { AdminContent } from './pages/admin/AdminContent';
 import { AdminCustomers } from './pages/admin/AdminCustomers';
 import { AdminInbox } from './pages/admin/AdminInbox';
+import { AdminStaff } from './pages/admin/AdminStaff';
 
 const ROUTE_TITLES: Record<string, string> = {
   '/': 'Flavor Doctors — Prescription-Strength Flavor, Small-Batch Sauces & Seasonings',
@@ -91,9 +92,9 @@ export default function App() {
         <Route
           path="/admin/orders"
           element={
-            <RequireAdmin>
+            <RequireStaff>
               <AdminOrders />
-            </RequireAdmin>
+            </RequireStaff>
           }
         />
         <Route
@@ -107,9 +108,9 @@ export default function App() {
         <Route
           path="/admin/analytics"
           element={
-            <RequireAdmin>
+            <RequireStaff>
               <AdminAnalytics />
-            </RequireAdmin>
+            </RequireStaff>
           }
         />
         <Route
@@ -139,16 +140,24 @@ export default function App() {
         <Route
           path="/admin/customers"
           element={
-            <RequireAdmin>
+            <RequireStaff>
               <AdminCustomers />
-            </RequireAdmin>
+            </RequireStaff>
           }
         />
         <Route
           path="/admin/inbox"
           element={
-            <RequireAdmin>
+            <RequireStaff>
               <AdminInbox />
+            </RequireStaff>
+          }
+        />
+        <Route
+          path="/admin/staff"
+          element={
+            <RequireAdmin>
+              <AdminStaff />
             </RequireAdmin>
           }
         />

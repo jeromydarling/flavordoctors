@@ -34,12 +34,16 @@ export interface Env {
   RESEND_API_KEY?: string;
 }
 
+export const ROLES = ['customer', 'support', 'admin'] as const;
+export type Role = (typeof ROLES)[number];
+
 export interface UserRow {
   id: string;
   email: string;
   password_hash: string;
   stripe_customer_id: string | null;
   is_admin: number;
+  role: Role;
   created_at: string;
 }
 
@@ -132,6 +136,7 @@ export interface AuthUser {
   id: string;
   email: string;
   isAdmin: boolean;
+  role: Role;
 }
 
 export interface RequestContext {

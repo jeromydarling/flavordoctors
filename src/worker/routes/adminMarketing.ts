@@ -1,7 +1,8 @@
 import type { ProductRow, TierKey, CadenceKey } from '../types';
 import { TIERS, CADENCES } from '../types';
 import { json, errorResponse, newId, readJson, slugify } from '../lib/util';
-import { requireAdmin } from '../lib/auth';
+import { requireAdmin, requireStaff } from '../lib/auth';
+import { audit } from '../lib/audit';
 import { runChat } from '../lib/ai';
 import { base64ToBytes } from '../lib/util';
 import { SEGMENTS, segmentEmails, sendMarketingEmail, upsertContact } from '../lib/marketing';
@@ -102,6 +103,7 @@ export const sendCampaign = requireAdmin(async (req, rc) => {
     }
   }
   await rc.env.DB.prepare("UPDATE campaigns SET status = 'sent', sent_count = ? WHERE id = ?").bind(sent, campaign.id).run();
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'campaign_send', campaign.id, `${sent}/${emails.length} sent (${campaign.segment})`));
   return json({ ok: true, sent, audience: emails.length });
 });
 
@@ -214,18 +216,20 @@ export const createPromotion = requireAdmin(async (req, rc) => {
   )
     .bind(id, b.name.trim(), code, b.percentOff, b.bannerText?.trim() || null, startsAt, endsAt)
     .run();
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'promo_create', code, `${b.percentOff}% off until ${endsAt}`));
   return json({ id, code }, 201);
 });
 
 export const deactivatePromotion = requireAdmin(async (_req, rc) => {
   const result = await rc.env.DB.prepare('UPDATE promotions SET is_active = 0 WHERE id = ?').bind(rc.params.id).run();
   if (result.meta.changes === 0) return errorResponse('Promotion not found', 404);
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'promo_deactivate', rc.params.id));
   return json({ ok: true });
 });
 
 // ---------- Analytics + Distributor Readiness ----------
 
-export const analytics = requireAdmin(async (_req, rc) => {
+export const analytics = requireStaff(async (_req, rc) => {
   const db = rc.env.DB;
   const [subs, orders30, ordersAll, repeat, topProducts, contacts, ratings, reviews] = await Promise.all([
     db.prepare("SELECT tier, cadence, COUNT(*) AS n FROM subscriptions WHERE status IN ('active','past_due','paused') GROUP BY tier, cadence").all<{ tier: string; cadence: string; n: number }>(),

@@ -14,15 +14,26 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <PageSpinner />;
   if (!user) return <Navigate to="/login" state={{ from: '/admin/products' }} replace />;
-  if (!user.isAdmin) {
-    return (
-      <div className="mx-auto max-w-xl px-4 py-24 text-center">
-        <h1 className="text-4xl font-bold">Restricted Area 🩺</h1>
-        <p className="mt-4 text-medical/70">This wing of the clinic is for medical staff only.</p>
-      </div>
-    );
-  }
+  if (user.role !== 'admin') return <RestrictedArea />;
   return <>{children}</>;
+}
+
+/** Staff wing: support reps and admins both pass. */
+export function RequireStaff({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <PageSpinner />;
+  if (!user) return <Navigate to="/login" state={{ from: '/admin/orders' }} replace />;
+  if (user.role !== 'admin' && user.role !== 'support') return <RestrictedArea />;
+  return <>{children}</>;
+}
+
+function RestrictedArea() {
+  return (
+    <div className="mx-auto max-w-xl px-4 py-24 text-center">
+      <h1 className="text-4xl font-bold">Restricted Area 🩺</h1>
+      <p className="mt-4 text-medical/70">This wing of the clinic is for medical staff only.</p>
+    </div>
+  );
 }
 
 export function PageSpinner() {

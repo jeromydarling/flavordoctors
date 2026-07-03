@@ -75,6 +75,7 @@ import {
   pendingReviews,
   moderateReview,
 } from './routes/adminMarketing';
+import { listStaff, setStaffRole } from './routes/adminStaff';
 import { runScheduled } from './scheduled';
 import { withPageMeta, robotsTxt, sitemapXml, llmsTxt } from './seo';
 import { errorResponse } from './lib/util';
@@ -165,6 +166,9 @@ const router = new Router()
   .get('/api/admin/b2b/rangeme.csv', rangeMeCsv)
   .get('/api/admin/marketing/reviews/pending', pendingReviews)
   .post('/api/admin/marketing/reviews/:id', moderateReview)
+  // Staff management (admin only)
+  .get('/api/admin/staff', listStaff)
+  .post('/api/admin/staff/role', setStaffRole)
   // Stripe webhooks
   .post('/api/webhooks/stripe', stripeWebhook)
   // Product images from R2

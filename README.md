@@ -62,6 +62,13 @@ Subscription-based e-commerce for a small-batch sauce & seasoning brand, built e
 - **Front Desk AI support bot** — second tab in the site chat widget: answers order/shipping/subscription/policy questions grounded in store policies and (for signed-in customers) their own orders and subscription. Escalates to a human ticket when asked or when it can't resolve — and if Workers AI is down, it fails open straight to the ticket form.
 - **Support Inbox** (/admin/inbox) — open/closed ticket queues with full threads (customer + bot transcript + agent), replies emailed to the customer via Email Service, close/reopen. Customers see their ticket threads in My Chart.
 
+## Staff roles & audit trail (admin)
+
+- **Roles** — `customer` (default), `support`, `admin`. Support reps get the customer-facing wing: Orders, Customers, Inbox, Analytics. Admins get everything plus **Staff** (/admin/staff).
+- **Staff page** — grant/revoke support or admin access by account email, with a self-demotion guard. Role checks on staff APIs read the live DB role (not just the JWT), so promotions and demotions take effect on the next request without re-login.
+- **Root allowlist** — emails in the `ADMIN_EMAILS` var are re-promoted to admin at every login and can never be locked out (marked 🔑 owner in the roster).
+- **Audit trail** — role changes, campaign sends, promo create/deactivate, product create/update/delete, order status changes, points grants, and one-off customer emails are logged to `audit_log` (who, what, target, detail) and shown on the Staff page.
+
 ## Growth & retention features
 
 - **Skip / Pause / Resume** — one-click from My Chart (`pause_collection` on Stripe); paused status synced via webhook.
@@ -254,5 +261,9 @@ GET|POST /api/admin/products                  PUT|DELETE /api/admin/products/:id
 POST /api/admin/products/:id/generate-description
 POST /api/admin/products/:id/generate-image
 GET  /api/admin/orders                        PUT /api/admin/orders/:id
+GET  /api/admin/staff                         POST /api/admin/staff/role
 POST /api/webhooks/stripe                     GET /images/products/{slug}/hero.png
 ```
+
+Admin routes require the `admin` role; the customer-support wing (`/api/admin/orders`,
+`/api/admin/customers*`, `/api/admin/tickets*`, `/api/admin/analytics`) also accepts `support`.
