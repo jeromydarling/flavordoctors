@@ -40,6 +40,18 @@ import {
   listReviews,
   starterPackCheckout,
 } from './routes/marketing';
+import { supportChat, createTicket, myTickets } from './routes/support';
+import {
+  listCustomers,
+  customerDetail,
+  addNote,
+  grantPoints,
+  emailCustomer,
+  listTickets,
+  ticketDetail,
+  replyTicket,
+  setTicketStatus,
+} from './routes/adminCustomers';
 import {
   listCampaigns,
   createCampaign,
@@ -117,6 +129,20 @@ const router = new Router()
   .post('/api/checkout/starter-pack', starterPackCheckout)
   .get('/api/products/:slug/reviews', listReviews)
   .post('/api/products/:id/review', submitReview)
+  // Support (Front Desk)
+  .post('/api/support', supportChat)
+  .post('/api/support/ticket', createTicket)
+  .get('/api/account/tickets', myTickets)
+  // Customer OS (admin)
+  .get('/api/admin/customers', listCustomers)
+  .get('/api/admin/customers/detail', customerDetail)
+  .post('/api/admin/customers/note', addNote)
+  .post('/api/admin/customers/points', grantPoints)
+  .post('/api/admin/customers/email', emailCustomer)
+  .get('/api/admin/tickets', listTickets)
+  .get('/api/admin/tickets/:id', ticketDetail)
+  .post('/api/admin/tickets/:id/reply', replyTicket)
+  .post('/api/admin/tickets/:id/status', setTicketStatus)
   // Marketing: admin
   .get('/api/admin/marketing/campaigns', listCampaigns)
   .post('/api/admin/marketing/campaigns', createCampaign)

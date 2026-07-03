@@ -21,6 +21,8 @@ import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 import { AdminMarketing } from './pages/admin/AdminMarketing';
 import { AdminPromos } from './pages/admin/AdminPromos';
 import { AdminContent } from './pages/admin/AdminContent';
+import { AdminCustomers } from './pages/admin/AdminCustomers';
+import { AdminInbox } from './pages/admin/AdminInbox';
 
 const ROUTE_TITLES: Record<string, string> = {
   '/': 'Flavor Doctors — Prescription-Strength Flavor, Small-Batch Sauces & Seasonings',
@@ -131,6 +133,22 @@ export default function App() {
           element={
             <RequireAdmin>
               <AdminContent />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/customers"
+          element={
+            <RequireAdmin>
+              <AdminCustomers />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/inbox"
+          element={
+            <RequireAdmin>
+              <AdminInbox />
             </RequireAdmin>
           }
         />

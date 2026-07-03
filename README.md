@@ -56,6 +56,12 @@ Subscription-based e-commerce for a small-batch sauce & seasoning brand, built e
 - **Written reviews** — customers add reviews from My Chart, admin moderates, approved reviews show on product pages and feed AggregateRating stars into search results.
 - **SMS** — Twilio-backed channel stub (set TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM secrets; A2P 10DLC registration required before production use).
 
+## Customer OS (admin)
+
+- **Patients** (/admin/customers) — every contact/customer with computed lifecycle stage (Lead → Customer → Subscriber → VIP / At-risk / Lapsed), orders, LTV, points, consent; search + stage filters. Click into the full customer file: order history, subscription, loyalty ledger, quiz diagnosis, email log, reviews, tickets, admin notes, grant-points and one-off email actions.
+- **Front Desk AI support bot** — second tab in the site chat widget: answers order/shipping/subscription/policy questions grounded in store policies and (for signed-in customers) their own orders and subscription. Escalates to a human ticket when asked or when it can't resolve — and if Workers AI is down, it fails open straight to the ticket form.
+- **Support Inbox** (/admin/inbox) — open/closed ticket queues with full threads (customer + bot transcript + agent), replies emailed to the customer via Email Service, close/reopen. Customers see their ticket threads in My Chart.
+
 ## Growth & retention features
 
 - **Skip / Pause / Resume** — one-click from My Chart (`pause_collection` on Stripe); paused status synced via webhook.

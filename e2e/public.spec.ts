@@ -93,7 +93,7 @@ test.describe('Public surface', () => {
 
   test('pharmacist widget opens and degrades gracefully without AI', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Ask The Pharmacist' }).click();
+    await page.getByRole('button', { name: 'Ask the Clinic' }).click();
     await expect(page.getByText("Pharmacy window's open", { exact: false })).toBeVisible();
     await page.getByPlaceholder('Describe your symptoms…').fill('my chicken is boring');
     await page.getByRole('button', { name: 'Send', exact: true }).click();

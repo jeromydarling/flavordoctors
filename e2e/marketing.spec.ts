@@ -136,7 +136,7 @@ test.describe.serial('Marketing OS', () => {
     // Public product page shows the testimonial
     await page.goto('/product/truffle-treatment');
     await expect(page.getByText('Patient Testimonials')).toBeVisible();
-    await expect(page.getByText('Cured everything.', { exact: false })).toBeVisible();
+    await expect(page.getByText('Cured everything.', { exact: false }).first()).toBeVisible();
 
     // Edge HTML now carries AggregateRating
     const html = await (await request.get('/product/truffle-treatment')).text();

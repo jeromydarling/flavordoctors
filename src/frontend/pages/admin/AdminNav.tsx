@@ -24,6 +24,12 @@ export function AdminNav() {
         <NavLink to="/admin/analytics" className={tabClass}>
           Analytics
         </NavLink>
+        <NavLink to="/admin/customers" className={tabClass}>
+          Customers
+        </NavLink>
+        <NavLink to="/admin/inbox" className={tabClass}>
+          Inbox
+        </NavLink>
         <NavLink to="/admin/marketing" className={tabClass}>
           Marketing
         </NavLink>

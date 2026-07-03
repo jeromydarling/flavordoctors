@@ -25,6 +25,38 @@ const TIER_EMOJI: Record<string, string> = {
   chief: '🏆',
 };
 
+function SupportTickets() {
+  const [tickets, setTickets] = useState<
+    { id: string; subject: string; status: string; messages: { role: string; body: string; created_at: string }[] }[]
+  >([]);
+  useEffect(() => {
+    api.get<{ tickets: typeof tickets }>('/api/account/tickets').then((d) => setTickets(d.tickets)).catch(() => {});
+  }, []);
+  if (tickets.length === 0) return null;
+  return (
+    <section className="mt-10">
+      <h2 className="text-3xl font-bold">Support Tickets</h2>
+      <div className="mt-4 space-y-3">
+        {tickets.map((t) => (
+          <details key={t.id} className="rx-card !p-4">
+            <summary className="cursor-pointer font-bold">
+              <span className={t.status === 'open' ? 'text-gold' : 'text-medical/60'}>[{t.status}]</span> {t.subject}
+            </summary>
+            <div className="mt-3 space-y-2">
+              {t.messages.map((m, i) => (
+                <div key={i} className={`rounded-lg p-3 text-sm ${m.role === 'customer' ? 'bg-navy' : 'bg-rx/10'}`}>
+                  <p className="mb-1 text-xs font-bold uppercase text-medical/60">{m.role === 'agent' ? 'Flavor Doctors' : m.role}</p>
+                  <p className="whitespace-pre-wrap text-medical/90">{m.body}</p>
+                </div>
+              ))}
+            </div>
+          </details>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function Account() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[] | null>(null);
@@ -260,6 +292,9 @@ export function Account() {
           </div>
         </div>
       )}
+
+      {/* Support tickets */}
+      <SupportTickets />
 
       {/* Orders + ratings */}
       <section className="mt-12">
