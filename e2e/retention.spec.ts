@@ -87,6 +87,21 @@ test.describe.serial('Restock alerts, Treatment Plans & NPS', () => {
     // And the sitemap picks it up
     const sitemap = await (await page.request.get('/sitemap.xml')).text();
     expect(sitemap).toContain(`/treatment-plans/${slug}`);
+
+    // Editing: tweak the intro in the Content Studio; the live page updates
+    // at the SAME url (slug is SEO-stable)
+    const newIntro = `Edited intro for run ${RUN} — now with 30% more bedside manner.`;
+    await page.goto('/admin/content');
+    const row = page.locator('li', { hasText: title });
+    await row.getByRole('button', { name: /Edit/ }).click();
+    await expect(page.getByText('Editing — the page URL stays the same')).toBeVisible();
+    await page.getByLabel('Recipe intro').fill(newIntro);
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByText('Changes saved', { exact: false })).toBeVisible();
+
+    await page.goto(`/treatment-plans/${slug}`);
+    await expect(page.getByText(newIntro)).toBeVisible();
+    await expect(page.getByRole('heading', { name: title })).toBeVisible();
   });
 
   test('NPS pulse: signed links record scores; detractors open a ticket', async ({ page }) => {

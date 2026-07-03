@@ -23,6 +23,7 @@ function RecipeStudio({ products }: { products: Product[] }) {
   const [productId, setProductId] = useState('');
   const [dish, setDish] = useState('');
   const [draft, setDraft] = useState<{ title: string; intro: string; bodyHtml: string; productId: string } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -39,9 +40,26 @@ function RecipeStudio({ products }: { products: Product[] }) {
     setMessage(null);
     try {
       const d = await api.post<{ draft: typeof draft }>('/api/admin/recipes/generate', { productId, dish });
+      setEditingId(null);
       setDraft(d.draft);
     } catch (e) {
       setMessage(e instanceof ApiError ? e.message : 'Generation failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEdit = async (r: RecipeRow) => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const d = await api.get<{ recipe: { id: string; title: string; intro: string; bodyHtml: string; productId: string } }>(
+        `/api/admin/recipes/${r.id}`
+      );
+      setEditingId(r.id);
+      setDraft({ title: d.recipe.title, intro: d.recipe.intro, bodyHtml: d.recipe.bodyHtml, productId: d.recipe.productId });
+    } catch (e) {
+      setMessage(e instanceof ApiError ? e.message : 'Could not load that plan');
     } finally {
       setBusy(false);
     }
@@ -52,9 +70,15 @@ function RecipeStudio({ products }: { products: Product[] }) {
     setBusy(true);
     setMessage(null);
     try {
-      const d = await api.post<{ slug: string }>('/api/admin/recipes', { ...draft, publish });
-      setMessage(publish ? `Published at /treatment-plans/${d.slug}` : 'Saved as draft.');
+      if (editingId) {
+        await api.put(`/api/admin/recipes/${editingId}`, draft);
+        setMessage('Changes saved — the live page updates immediately (URL unchanged).');
+      } else {
+        const d = await api.post<{ slug: string }>('/api/admin/recipes', { ...draft, publish });
+        setMessage(publish ? `Published at /treatment-plans/${d.slug}` : 'Saved as draft.');
+      }
       setDraft(null);
+      setEditingId(null);
       setDish('');
       await load();
     } catch (e) {
@@ -96,15 +120,27 @@ function RecipeStudio({ products }: { products: Product[] }) {
         </div>
         {draft && (
           <div className="space-y-2 rounded-lg border border-navy-lighter p-3">
+            {editingId && <p className="text-xs font-bold uppercase tracking-wider text-gold">Editing — the page URL stays the same</p>}
             <input aria-label="Recipe title" className="input !py-2 font-bold" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
             <textarea aria-label="Recipe intro" className="input !text-sm" rows={2} value={draft.intro} onChange={(e) => setDraft({ ...draft, intro: e.target.value })} />
             <textarea aria-label="Recipe body HTML" className="input font-mono !text-xs" rows={10} value={draft.bodyHtml} onChange={(e) => setDraft({ ...draft, bodyHtml: e.target.value })} />
             <div className="flex gap-2">
-              <button className="btn-rx !px-4 !py-2 !text-sm" disabled={busy} onClick={() => save(true)}>
-                Publish now
-              </button>
-              <button className="btn-outline !px-4 !py-2 !text-sm" disabled={busy} onClick={() => save(false)}>
-                Save draft
+              {editingId ? (
+                <button className="btn-rx !px-4 !py-2 !text-sm" disabled={busy} onClick={() => save(false)}>
+                  Save changes
+                </button>
+              ) : (
+                <>
+                  <button className="btn-rx !px-4 !py-2 !text-sm" disabled={busy} onClick={() => save(true)}>
+                    Publish now
+                  </button>
+                  <button className="btn-outline !px-4 !py-2 !text-sm" disabled={busy} onClick={() => save(false)}>
+                    Save draft
+                  </button>
+                </>
+              )}
+              <button className="btn-outline !px-4 !py-2 !text-sm" disabled={busy} onClick={() => { setDraft(null); setEditingId(null); }}>
+                Discard
               </button>
             </div>
           </div>
@@ -121,9 +157,14 @@ function RecipeStudio({ products }: { products: Product[] }) {
                     <span className="ml-2 text-medical/50">draft</span>
                   )}
                 </span>
-                <button className="btn-outline !px-3 !py-1 !text-xs" onClick={() => togglePublish(r)}>
-                  {r.is_published === 1 ? 'Unpublish' : 'Publish'}
-                </button>
+                <span className="flex gap-2">
+                  <button className="btn-rx !px-3 !py-1 !text-xs" disabled={busy} onClick={() => startEdit(r)}>
+                    ✏️ Edit
+                  </button>
+                  <button className="btn-outline !px-3 !py-1 !text-xs" onClick={() => togglePublish(r)}>
+                    {r.is_published === 1 ? 'Unpublish' : 'Publish'}
+                  </button>
+                </span>
               </li>
             ))}
           </ul>

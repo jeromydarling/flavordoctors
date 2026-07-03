@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flavor Doctors — Platform &amp; Feature Overview</title>
+<style>
+  :root { --navy:#0D1B2A; --navy2:#16293F; --rx:#1E9E54; --gold:#C77F1A; --ink:#1c2430; --muted:#5b6673; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: var(--ink); font-size: 10.5pt; line-height: 1.5; }
+  .page { padding: 0.35in 0.55in; }
+
+  header.cover { background: var(--navy); color: #F5F5F5; padding: 0.55in 0.55in 0.45in; }
+  header.cover .kicker { color: #F5A623; text-transform: uppercase; letter-spacing: 4px; font-size: 9pt; font-weight: bold; }
+  header.cover h1 { font-size: 30pt; line-height: 1.05; margin: 8px 0 6px; }
+  header.cover p.sub { color: #c9d2dc; font-size: 12pt; max-width: 6.6in; }
+  header.cover .meta { margin-top: 14px; color: #8fa0b3; font-size: 9pt; }
+
+  .statgrid { display: flex; gap: 10px; margin: 16px 0 4px; }
+  .stat { flex: 1; border: 1.5pt solid var(--navy2); border-radius: 8px; padding: 8px 10px; text-align: center; }
+  .stat b { display: block; font-size: 16pt; color: var(--navy); }
+  .stat span { font-size: 8pt; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+  h2 { font-size: 14pt; color: var(--navy); border-bottom: 2.5pt solid var(--rx); padding-bottom: 3px; margin: 20px 0 10px; break-after: avoid; }
+  h2 .tag { font-size: 8pt; color: var(--gold); text-transform: uppercase; letter-spacing: 2px; vertical-align: middle; margin-left: 8px; font-family: Helvetica, Arial, sans-serif; }
+  .cols { column-count: 2; column-gap: 28px; }
+  ul { list-style: none; }
+  li { padding-left: 14px; position: relative; margin-bottom: 5px; break-inside: avoid; }
+  li::before { content: '✚'; position: absolute; left: 0; color: var(--rx); font-size: 8pt; top: 2px; }
+  li b { color: var(--navy); }
+  p.lede { color: var(--muted); margin-bottom: 8px; font-style: italic; }
+
+  table.stack { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  table.stack td { border-top: 0.75pt solid #d7dde4; padding: 5px 8px; vertical-align: top; }
+  table.stack td:first-child { width: 2.1in; font-weight: bold; color: var(--navy); font-family: Helvetica, Arial, sans-serif; font-size: 9pt; }
+
+  footer { margin-top: 22px; border-top: 0.75pt solid #d7dde4; padding-top: 8px; color: var(--muted); font-size: 8.5pt; display: flex; justify-content: space-between; }
+  .pagebreak { break-before: page; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <p class="kicker">Confidential · Investor Overview</p>
+  <h1>Flavor Doctors 🩺</h1>
+  <p class="sub">A direct-to-consumer premium sauce &amp; seasoning brand with a prescription-themed storefront, a subscription engine, and a fully self-built commerce, marketing, and operations platform — running end-to-end on serverless infrastructure at near-zero fixed cost.</p>
+  <p class="meta">flavordoctors.com &nbsp;·&nbsp; Platform &amp; Feature Overview &nbsp;·&nbsp; July 2026</p>
+</header>
+
+<div class="page">
+
+<div class="statgrid">
+  <div class="stat"><b>34</b><span>SKUs · 5 collections</span></div>
+  <div class="stat"><b>3</b><span>Subscription tiers</span></div>
+  <div class="stat"><b>60+</b><span>API endpoints</span></div>
+  <div class="stat"><b>7</b><span>Nightly automations</span></div>
+  <div class="stat"><b>78</b><span>Automated E2E tests</span></div>
+  <div class="stat"><b>$0</b><span>Servers to maintain</span></div>
+</div>
+
+<h2>The Technology Stack</h2>
+<p class="lede">One codebase, one deploy, no servers. Every request is served from Cloudflare's edge network in 300+ cities.</p>
+<table class="stack">
+  <tr><td>Compute</td><td>Cloudflare Workers — a single Worker serves both the customer-facing React application and the entire API, deployed globally in seconds.</td></tr>
+  <tr><td>Database</td><td>Cloudflare D1 (distributed SQLite) — products, orders, subscriptions, customers, inventory, marketing, and support data with versioned migrations.</td></tr>
+  <tr><td>Storage</td><td>Cloudflare R2 object storage for all product and lifestyle imagery.</td></tr>
+  <tr><td>AI</td><td>Cloudflare Workers AI — Llama 3.1 for copy, chat, and recipes; Flux-1 for product &amp; lifestyle image generation. No external AI vendor.</td></tr>
+  <tr><td>Payments</td><td>Stripe — checkout, subscriptions, coupons, promotion codes, customer billing portal, and HMAC-verified webhooks.</td></tr>
+  <tr><td>Email</td><td>Cloudflare Email Service for transactional and marketing sends (with an automatic fallback provider), CAN-SPAM compliant with one-click unsubscribe.</td></tr>
+  <tr><td>Frontend</td><td>React 18 + Vite + Tailwind CSS, TypeScript end-to-end.</td></tr>
+  <tr><td>Analytics</td><td>Google Analytics 4 — client-side tagging plus server-side purchase events (ad-blocker-proof revenue tracking).</td></tr>
+  <tr><td>CI/CD &amp; QA</td><td>GitHub Actions: type-checks, builds, database migrations, and a 78-test Playwright end-to-end suite covering signup through checkout, admin, and automations on every release.</td></tr>
+</table>
+
+<h2>The Customer Experience <span class="tag">Front end</span></h2>
+<div class="cols">
+<ul>
+  <li><b>Themed storefront</b> — the entire shop plays out as a clinic: products are "treatments," the quiz is an "Intake Exam," the account page is "My Chart."</li>
+  <li><b>Catalog</b> — 34 products across 5 collections (doctored mayos, spiced ghee butters, burger sauces, crunch toppers, seasonings), each with AI-generated "Doctor's Notes" prescription copy and AI-generated product photography.</li>
+  <li><b>Intake Exam</b> — a 5-question flavor quiz that produces an AI diagnosis and a personalized 3-product prescription, with one click to add all three to cart.</li>
+  <li><b>The Pharmacist</b> — an AI consult chat grounded in the live catalog that recommends and adds products.</li>
+  <li><b>Front Desk</b> — an AI support agent that answers order, shipping, and subscription questions from the customer's own data, and hands off to a human ticket when needed.</li>
+  <li><b>Clinical Trials</b> — limited product drops with launch schedules, stock caps, guest waitlists, and 48-hour early access for subscribers.</li>
+  <li><b>Smart cart</b> — live bundle-discount and free-shipping nudges, loyalty-point redemption, quantity controls.</li>
+  <li><b>Reviews &amp; ratings</b> — one-click star ratings on past purchases plus written, moderated reviews shown on product pages.</li>
+  <li><b>Treatment Plans</b> — an SEO recipe hub: search-indexed recipe pages that each end in a product call-to-action.</li>
+  <li><b>Back-in-stock alerts</b> — sold-out products collect notify-me signups and email them automatically on restock.</li>
+  <li><b>Full account self-service</b> — order history, one-click reorder, password reset &amp; change, email preferences, and self-service account deletion.</li>
+</ul>
+</div>
+
+<h2>Commerce &amp; Subscriptions <span class="tag">Revenue engine</span></h2>
+<div class="cols">
+<ul>
+  <li><b>Rx Box subscriptions</b> — three tiers ($39 / $54 / $69 per box at 4 / 6 / 8 items) on monthly, every-2-months, or annual cadence (annual = 2 months free, prepaid cash up front).</li>
+  <li><b>First box 20% off</b> — automatic for brand-new subscribers.</li>
+  <li><b>Box customization</b> — subscribers hand-pick every item in their next box.</li>
+  <li><b>Skip / pause / resume</b> — one click each; billing pauses cleanly through Stripe.</li>
+  <li><b>Cancel-flow save offers</b> — canceling opens a retention ladder (skip → pause → one-time 20% off next box → cancel at period end with undo). Saves vs. cancels are measured.</li>
+  <li><b>Pricing plays</b> — any 3+ items 15% off automatically; free shipping over $45; timed sitewide promotions with countdown banner and Stripe promo codes.</li>
+  <li><b>Guest checkout</b> — no account required to buy; guests are folded into the CRM by email.</li>
+</ul>
+</div>
+
+<h2>Loyalty, Referrals &amp; Retention <span class="tag">LTV</span></h2>
+<div class="cols">
+<ul>
+  <li><b>Board Certification loyalty</b> — 1 point per $1 across orders and subscription invoices; four status tiers.</li>
+  <li><b>Points redemption</b> — points are worth 1¢ each and spend in $5 blocks right in the cart; balances are only debited when payment settles.</li>
+  <li><b>Refer a Patient</b> — every customer gets a share link; both sides earn $5 in points when the friend's first order is paid. Signups, conversions, and earnings shown on the customer's own card.</li>
+  <li><b>Refill reminders</b> — automatic "your Rx is running low" emails 30–45 days after purchase.</li>
+  <li><b>Win-back campaigns</b> — automatic outreach to lapsed subscribers.</li>
+  <li><b>NPS pulse</b> — a one-question survey a week after delivery; unhappy scores automatically open a support ticket, happy ones are routed to reviews and referrals. The live NPS score sits on the analytics dashboard.</li>
+</ul>
+</div>
+
+<div class="pagebreak"></div>
+
+<h2>The Back Office <span class="tag">Admin &amp; staff</span></h2>
+<div class="cols">
+<ul>
+  <li><b>Role-based access</b> — admin and support-rep roles; reps see orders, customers, inbox, analytics, and inventory only. Role changes apply instantly, and the owner account can never be locked out.</li>
+  <li><b>Audit trail</b> — every sensitive action (role changes, campaign sends, promos, product edits, order status changes, points grants, stock movements) is logged with who/what/when.</li>
+  <li><b>Customer OS</b> — every customer with a computed lifecycle stage (Lead → Customer → Subscriber → VIP / At-risk / Lapsed) and a full file: orders, subscription, points, quiz diagnosis, notes, tickets, email history, reviews. One-off emails and goodwill points from the same screen.</li>
+  <li><b>Support inbox</b> — ticket queues with complete threads (customer, AI transcript, agent); replies are emailed and mirrored to the customer's account.</li>
+  <li><b>Product management</b> — full catalog CRUD with AI description and product-image regeneration built in.</li>
+  <li><b>Order management</b> — status pipeline from paid through delivered/refunded.</li>
+  <li><b>Analytics dashboard</b> — monthly-equivalent recurring revenue, active subscribers, 30-day and lifetime revenue, average order value, repeat-purchase rate, top products, list growth, NPS, cancel-flow saves — plus a distributor-readiness scorecard tracking retail-launch benchmarks.</li>
+</ul>
+</div>
+
+<h2>Inventory &amp; Operations <span class="tag">Supply chain</span></h2>
+<div class="cols">
+<ul>
+  <li><b>Lot-level tracking</b> — every co-packer delivery is recorded as a lot with code, quantity, best-by date, and PO reference.</li>
+  <li><b>FEFO fulfillment</b> — orders and subscription boxes consume the earliest-expiring lot first, so any jar can be traced to its batch (food-safety ready).</li>
+  <li><b>Committed-stock forecasting</b> — the system knows the contents of every upcoming subscription box, so available stock = on-hand minus next month's box demand, before it bills.</li>
+  <li><b>Reorder alerts</b> — a weekly email flags every SKU at or below its reorder point.</li>
+  <li><b>Movement ledger</b> — receipts, sales, box shipments, and cycle-count adjustments in one auditable stream.</li>
+</ul>
+</div>
+
+<h2>Marketing OS <span class="tag">Growth engine</span></h2>
+<div class="cols">
+<ul>
+  <li><b>Email campaigns</b> — audience segments (all, leads, customers, VIPs, lapsed…), A/B subject-line testing, open and click tracking, consent-checked sends with compliant footers.</li>
+  <li><b>Lifecycle flows</b> — editable automated sequences (welcome drips, post-purchase follow-ups) that run themselves nightly.</li>
+  <li><b>Landing page builder</b> — server-rendered campaign pages with email capture and per-page signup counts.</li>
+  <li><b>Promotions</b> — create a sale once; the site banner, countdown timer, and Stripe promo code all deploy together.</li>
+  <li><b>AI Content Studio</b> — one-click weekly social calendars, TikTok captions, email subject lines, Flux lifestyle imagery, and Treatment Plan recipes (drafted, edited, and published in-app).</li>
+  <li><b>B2B kit</b> — print-ready sell sheets per collection and a RangeMe-formatted CSV with wholesale pricing for retail buyers.</li>
+  <li><b>Contact CRM</b> — every email address with source attribution, UTM capture, consent state, and CSV export.</li>
+</ul>
+</div>
+
+<h2>Search &amp; Discoverability <span class="tag">SEO</span></h2>
+<div class="cols">
+<ul>
+  <li><b>Edge-injected SEO</b> — per-page titles, descriptions, canonicals, and social-share cards rendered at the CDN edge for full crawler visibility.</li>
+  <li><b>Structured data</b> — Product (with live review ratings), Organization, WebSite, and Recipe schema for rich search results.</li>
+  <li><b>Dynamic sitemap &amp; robots</b> — every product and recipe page, always current.</li>
+  <li><b>llms.txt</b> — a machine-readable catalog map so AI answer engines (ChatGPT, Perplexity) recommend the brand accurately.</li>
+  <li><b>Canonical domain enforcement</b> — one indexed origin, permanent redirects from all aliases.</li>
+</ul>
+</div>
+
+<h2>Security &amp; Quality</h2>
+<div class="cols">
+<ul>
+  <li><b>Payments integrity</b> — cryptographically verified Stripe webhooks; loyalty and inventory operations are idempotent, so retries and replays can never double-charge, double-credit, or double-ship.</li>
+  <li><b>Account security</b> — salted password hashing, signed session tokens, hashed single-use password-reset links, anti-probing responses.</li>
+  <li><b>Least privilege</b> — role-based API enforcement (not just hidden buttons) with live revocation and a permanent audit log.</li>
+  <li><b>Test coverage</b> — 78 automated end-to-end browser tests run on every change: signup → quiz → cart → checkout → subscription → support → admin → inventory → referrals.</li>
+  <li><b>Zero-downtime releases</b> — every merge type-checks, tests, migrates the database, and deploys globally, automatically.</li>
+</ul>
+</div>
+
+<footer>
+  <span>Flavor Doctors — flavordoctors.com</span>
+  <span>Prescription-strength flavor. Confidential.</span>
+</footer>
+
+</div>
+</body>
+</html>

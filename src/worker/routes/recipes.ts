@@ -201,6 +201,37 @@ export const saveRecipe = requireAdmin(async (req, rc) => {
   return json({ id, slug }, 201);
 });
 
+/** Full recipe for the admin editor (list omits the body). */
+export const getRecipeAdmin = requireAdmin(async (_req, rc) => {
+  const recipe = await rc.env.DB.prepare('SELECT * FROM recipes WHERE id = ?').bind(rc.params.id).first<RecipeRow>();
+  if (!recipe) return errorResponse('Recipe not found', 404);
+  return json({
+    recipe: {
+      id: recipe.id,
+      slug: recipe.slug,
+      title: recipe.title,
+      intro: recipe.intro,
+      bodyHtml: recipe.body_html,
+      productId: recipe.product_id,
+      isPublished: recipe.is_published === 1,
+    },
+  });
+});
+
+/** Edit a recipe's text. The slug never changes, so published URLs stay stable. */
+export const updateRecipe = requireAdmin(async (req, rc) => {
+  const b = await readJson<{ title?: string; intro?: string; bodyHtml?: string }>(req);
+  if (!b?.title?.trim() || !b.intro?.trim() || !b.bodyHtml?.trim()) {
+    return errorResponse('title, intro, bodyHtml required');
+  }
+  const result = await rc.env.DB.prepare('UPDATE recipes SET title = ?, intro = ?, body_html = ? WHERE id = ?')
+    .bind(b.title.trim().slice(0, 90), b.intro.trim().slice(0, 300), sanitizeBody(b.bodyHtml), rc.params.id)
+    .run();
+  if (result.meta.changes === 0) return errorResponse('Recipe not found', 404);
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'recipe_update', rc.params.id, b.title.trim()));
+  return json({ ok: true });
+});
+
 export const setRecipePublished = requireAdmin(async (req, rc) => {
   const b = await readJson<{ publish?: boolean }>(req);
   const result = await rc.env.DB.prepare('UPDATE recipes SET is_published = ? WHERE id = ?')

@@ -8,6 +8,8 @@ import {
   generateRecipe,
   listRecipes,
   saveRecipe,
+  getRecipeAdmin,
+  updateRecipe,
   setRecipePublished,
   deleteRecipe,
 } from './routes/recipes';
@@ -215,6 +217,8 @@ const router = new Router()
   .get('/api/admin/recipes', listRecipes)
   .post('/api/admin/recipes', saveRecipe)
   .post('/api/admin/recipes/generate', generateRecipe)
+  .get('/api/admin/recipes/:id', getRecipeAdmin)
+  .put('/api/admin/recipes/:id', updateRecipe)
   .post('/api/admin/recipes/:id/publish', setRecipePublished)
   .delete('/api/admin/recipes/:id', deleteRecipe)
   // Stripe webhooks
