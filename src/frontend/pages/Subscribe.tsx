@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
+import { affRef } from '../lib/affiliate';
 import { TIERS, CADENCES, formatPrice } from '../lib/types';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,7 +23,11 @@ export function Subscribe() {
     setBusyTier(tier);
     setError(null);
     try {
-      const { url } = await api.post<{ url: string }>('/api/subscribe', { tier, cadence });
+      const { url } = await api.post<{ url: string }>('/api/subscribe', {
+        tier,
+        cadence,
+        ...(affRef() ? { affiliateRef: affRef() } : {}),
+      });
       window.location.href = url;
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not start checkout');

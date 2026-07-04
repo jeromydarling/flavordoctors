@@ -44,7 +44,8 @@ export function dropGateError(p: ProductRow, quantity: number, isSubscriber: boo
 
 /** One-time purchase: create a Stripe Checkout Session (guests allowed). */
 export async function createCheckout(req: Request, rc: RequestContext): Promise<Response> {
-  const body = await readJson<{ items?: CartItem[]; redeemPoints?: number }>(req);
+  const body = await readJson<{ items?: CartItem[]; redeemPoints?: number; affiliateRef?: string }>(req);
+  const affiliateRef = /^hc_[a-z0-9]{1,40}$/.test(body?.affiliateRef ?? '') ? body!.affiliateRef! : null;
   const items = (body?.items ?? []).filter(
     (i) => typeof i.productId === 'string' && Number.isInteger(i.quantity) && i.quantity > 0 && i.quantity <= 20
   );
@@ -160,6 +161,7 @@ export async function createCheckout(req: Request, rc: RequestContext): Promise<
       cart: cartMeta,
       ...(user ? { user_id: user.id } : {}),
       ...(pointsValue > 0 ? { redeem_points: String(redeemPoints) } : {}),
+      ...(affiliateRef ? { affiliate_ref: affiliateRef } : {}),
     },
   });
 

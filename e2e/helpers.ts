@@ -78,7 +78,7 @@ export function orderPaidEvent(
   email: string,
   cart: { p: string; q: number }[],
   totalCents: number,
-  opts: { redeemPoints?: number } = {}
+  opts: { redeemPoints?: number; affiliateRef?: string } = {}
 ) {
   const ref = `pi_e2e_${randomBytes(5).toString('hex')}`;
   return {
@@ -96,13 +96,45 @@ export function orderPaidEvent(
           cart: JSON.stringify(cart),
           ...(userId ? { user_id: userId } : {}),
           ...(opts.redeemPoints ? { redeem_points: String(opts.redeemPoints) } : {}),
+          ...(opts.affiliateRef ? { affiliate_ref: opts.affiliateRef } : {}),
         },
       },
     },
   };
 }
 
-export function subscriptionCreatedEvent(userId: string, email: string, tier: string, cadence = 'monthly') {
+export function refundedEvent(paymentIntent: string) {
+  return {
+    id: `evt_e2e_rf_${randomBytes(4).toString('hex')}`,
+    type: 'charge.refunded',
+    data: { object: { id: `ch_e2e_${randomBytes(4).toString('hex')}`, payment_intent: paymentIntent } },
+  };
+}
+
+export function renewalInvoiceEvent(stripeSubId: string, amountCents: number) {
+  const ref = `in_e2e_${randomBytes(5).toString('hex')}`;
+  return {
+    id: `evt_e2e_${ref}`,
+    type: 'invoice.paid',
+    data: {
+      object: {
+        id: ref,
+        subscription: stripeSubId,
+        amount_paid: amountCents,
+        billing_reason: 'subscription_cycle',
+        lines: { data: [{ period: { end: Math.floor(Date.now() / 1000) + 30 * 86400 } }] },
+      },
+    },
+  };
+}
+
+export function subscriptionCreatedEvent(
+  userId: string,
+  email: string,
+  tier: string,
+  cadence = 'monthly',
+  opts: { affiliateRef?: string } = {}
+) {
   const ref = `sub_e2e_${randomBytes(5).toString('hex')}`;
   return {
     id: `evt_e2e_${ref}`,
@@ -114,7 +146,13 @@ export function subscriptionCreatedEvent(userId: string, email: string, tier: st
         subscription: ref,
         amount_total: 5400,
         customer_details: { email },
-        metadata: { kind: 'subscription', tier, cadence, user_id: userId },
+        metadata: {
+          kind: 'subscription',
+          tier,
+          cadence,
+          user_id: userId,
+          ...(opts.affiliateRef ? { affiliate_ref: opts.affiliateRef } : {}),
+        },
       },
     },
   };

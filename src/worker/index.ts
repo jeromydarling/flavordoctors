@@ -14,6 +14,15 @@ import {
   deleteRecipe,
 } from './routes/recipes';
 import { npsRespond } from './routes/nps';
+import {
+  applyAffiliate,
+  getMyAffiliate,
+  setPayoutMethod,
+  connectOnboard,
+  trackAffiliateClick,
+  getLibrary,
+} from './routes/affiliates';
+import { listAffiliates, decideAffiliate, releasePayouts } from './routes/adminAffiliates';
 import { createCheckout } from './routes/checkout';
 import {
   createSubscription,
@@ -205,6 +214,16 @@ const router = new Router()
   .get('/api/admin/b2b/rangeme.csv', rangeMeCsv)
   .get('/api/admin/marketing/reviews/pending', pendingReviews)
   .post('/api/admin/marketing/reviews/:id', moderateReview)
+  // House Call Network (affiliates)
+  .post('/api/affiliates/apply', applyAffiliate)
+  .get('/api/affiliates/me', getMyAffiliate)
+  .put('/api/affiliates/payout-method', setPayoutMethod)
+  .post('/api/affiliates/connect', connectOnboard)
+  .post('/api/aff/click', trackAffiliateClick)
+  .get('/api/affiliates/library', getLibrary)
+  .get('/api/admin/affiliates', listAffiliates)
+  .post('/api/admin/affiliates/:id/decision', decideAffiliate)
+  .post('/api/admin/affiliates/payouts/release', releasePayouts)
   // Staff management (admin only)
   .get('/api/admin/staff', listStaff)
   .post('/api/admin/staff/role', setStaffRole)

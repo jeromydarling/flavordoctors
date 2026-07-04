@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { formatPrice, FREE_SHIPPING_THRESHOLD, BUNDLE_MIN_QTY, BUNDLE_PERCENT, type LoyaltyInfo } from '../lib/types';
 import { api } from '../lib/api';
+import { affRef } from '../lib/affiliate';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-lg font-semibold transition-colors hover:text-rx ${isActive ? 'text-rx' : 'text-medical/80'}`;
@@ -133,6 +134,9 @@ export function Layout() {
             <p className="mt-2">
               Questions? Read the <Link to="/faq" className="text-rx underline">Patient Information Leaflet</Link>.
             </p>
+            <p className="mt-2">
+              Creators: <Link to="/affiliates" className="text-gold underline">join the House Call Network</Link> — earn 25%+.
+            </p>
           </div>
           <div className="text-sm text-medical/70">
             <h2 className="mb-3 text-lg font-bold text-medical">Warning Label</h2>
@@ -202,6 +206,7 @@ function CartDrawer() {
       const { url } = await api.post<{ url: string }>('/api/checkout', {
         items: cart.lines.map((l) => ({ productId: l.product.id, quantity: l.quantity })),
         ...(redeemPoints > 0 ? { redeemPoints } : {}),
+        ...(affRef() ? { affiliateRef: affRef() } : {}),
       });
       window.location.href = url;
     } catch (e) {

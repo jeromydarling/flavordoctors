@@ -5,6 +5,7 @@ import { verifyStripeSignature, stripeRequest } from '../lib/stripe';
 import { sendEmail, orderConfirmationEmail, subscriptionConfirmationEmail } from '../lib/email';
 import { upsertContact } from '../lib/marketing';
 import { consumeStock } from '../lib/inventory';
+import { type AffiliateRow, recordCommission, clawbackCommission, RECURRING_MONTHS } from '../lib/affiliates';
 import { defaultBoxItems } from './products';
 import type { Env } from '../types';
 
@@ -68,6 +69,26 @@ export async function stripeWebhook(req: Request, rc: RequestContext): Promise<R
             .bind(new Date(periodEnd * 1000).toISOString(), subId)
             .run();
         }
+        // Affiliate recurring commission: renewals within the subscriber's
+        // first year earn the originating affiliate their recurring rate.
+        if (subId && invoice.billing_reason && invoice.billing_reason !== 'subscription_create' && invoice.amount_paid > 0) {
+          try {
+            const sub = await rc.env.DB.prepare(
+              `SELECT affiliate_id, created_at FROM subscriptions WHERE stripe_subscription_id = ?
+               AND affiliate_id IS NOT NULL AND created_at > datetime('now', '-${RECURRING_MONTHS} months')`
+            )
+              .bind(subId)
+              .first<{ affiliate_id: string }>();
+            if (sub?.affiliate_id) {
+              const aff = await rc.env.DB.prepare("SELECT * FROM affiliates WHERE id = ? AND status = 'approved'")
+                .bind(sub.affiliate_id)
+                .first<AffiliateRow>();
+              if (aff) await recordCommission(rc.env, aff, 'recurring', invoice.amount_paid, invoice.id, null);
+            }
+          } catch (err) {
+            console.error('Affiliate recurring commission failed:', err);
+          }
+        }
         // Renewal boxes ship out of inventory (the first box is consumed at
         // checkout, so skip the subscription_create invoice).
         if (subId && invoice.billing_reason && invoice.billing_reason !== 'subscription_create') {
@@ -106,6 +127,17 @@ export async function stripeWebhook(req: Request, rc: RequestContext): Promise<R
           await rc.env.DB.prepare("UPDATE subscriptions SET status = 'past_due' WHERE stripe_subscription_id = ?")
             .bind(subId)
             .run();
+        }
+        break;
+      }
+      case 'charge.refunded': {
+        const paymentIntent = event.data.object.payment_intent;
+        if (paymentIntent) {
+          // Mark the order and claw back any affiliate commission it earned.
+          await rc.env.DB.prepare("UPDATE orders SET status = 'refunded' WHERE stripe_payment_intent = ?")
+            .bind(paymentIntent)
+            .run();
+          await clawbackCommission(rc.env, paymentIntent);
         }
         break;
       }
@@ -184,6 +216,9 @@ async function createOrderFromSession(rc: RequestContext, session: Record<string
 
   if (email) rc.ctx.waitUntil(referralRewards(rc, email, userId, paymentRef));
 
+  // Affiliate attribution: explicit code beats the ?aff= link ref.
+  await attributeOrder(rc, orderId, session, email, paymentRef);
+
   // Ship the order out of inventory, FEFO. Idempotent per order id.
   await consumeStock(
     rc.env,
@@ -199,6 +234,64 @@ async function createOrderFromSession(rc: RequestContext, session: Record<string
     );
     rc.ctx.waitUntil(upsertContact(rc.env, email, { source: 'checkout', userId: userId ?? undefined }));
     rc.ctx.waitUntil(ga4Purchase(rc.env, email, orderId, session.amount_total ?? 0));
+  }
+}
+
+/** Resolve the affiliate behind a checkout session: promo code first, link ref second. */
+async function resolveAffiliate(rc: RequestContext, session: Record<string, any>): Promise<AffiliateRow | null> {
+  // Code-based attribution: our affiliate promo codes carry affiliate_id metadata.
+  if ((session.total_details?.amount_discount ?? 0) > 0 && session.id) {
+    try {
+      const expanded = await stripeRequest<{
+        total_details?: { breakdown?: { discounts?: { discount?: { promotion_code?: string } }[] } };
+      }>(rc.env, 'GET', `/v1/checkout/sessions/${session.id}?expand[]=total_details.breakdown`);
+      const promoId = expanded.total_details?.breakdown?.discounts?.[0]?.discount?.promotion_code;
+      if (promoId) {
+        const promo = await stripeRequest<{ metadata?: { affiliate_id?: string } }>(rc.env, 'GET', `/v1/promotion_codes/${promoId}`);
+        if (promo.metadata?.affiliate_id) {
+          const aff = await rc.env.DB.prepare("SELECT * FROM affiliates WHERE id = ? AND status = 'approved'")
+            .bind(promo.metadata.affiliate_id)
+            .first<AffiliateRow>();
+          if (aff) return aff;
+        }
+      }
+    } catch (err) {
+      console.error('Affiliate code attribution lookup failed (falling back to link ref):', err);
+    }
+  }
+  const ref = session.metadata?.affiliate_ref;
+  if (ref && /^hc_[a-z0-9]{1,40}$/.test(ref)) {
+    return rc.env.DB.prepare("SELECT * FROM affiliates WHERE ref_code = ? AND status = 'approved'")
+      .bind(ref)
+      .first<AffiliateRow>();
+  }
+  return null;
+}
+
+/** Attribute a paid order to its affiliate and record the first-order commission. */
+async function attributeOrder(
+  rc: RequestContext,
+  orderId: string,
+  session: Record<string, any>,
+  email: string | null,
+  paymentRef: string
+): Promise<void> {
+  try {
+    const aff = await resolveAffiliate(rc, session);
+    if (!aff) return;
+    if (email && aff.email.toLowerCase() === email.toLowerCase()) return; // self-purchase earns nothing
+    await rc.env.DB.prepare('UPDATE orders SET affiliate_id = ? WHERE id = ?').bind(aff.id, orderId).run();
+
+    // Commission on the buyer's FIRST order only, shipping excluded.
+    const orders = await rc.env.DB.prepare("SELECT COUNT(*) AS n FROM orders WHERE email = ? AND status != 'canceled'")
+      .bind(email)
+      .first<{ n: number }>();
+    if (email && (orders?.n ?? 0) === 1) {
+      const base = (session.amount_total ?? 0) - (session.total_details?.amount_shipping ?? 0);
+      await recordCommission(rc.env, aff, 'first_order', base, paymentRef, orderId);
+    }
+  } catch (err) {
+    console.error('Affiliate attribution failed:', err);
   }
 }
 
@@ -280,11 +373,25 @@ async function createSubscriptionFromSession(rc: RequestContext, session: Record
 
   // Default box = best-sellers until the user customizes.
   const items = await defaultBoxItems(rc, tier.items);
+  const subId = newId('s');
   await rc.env.DB.prepare(
     "INSERT INTO subscriptions (id, user_id, stripe_subscription_id, tier, status, cadence, items_json, next_billing_date) VALUES (?, ?, ?, ?, 'active', ?, ?, ?)"
   )
-    .bind(newId('s'), userId, stripeSubId, tierKey, cadence, JSON.stringify(items), nextBilling)
+    .bind(subId, userId, stripeSubId, tierKey, cadence, JSON.stringify(items), nextBilling)
     .run();
+
+  // Affiliate attribution: the originating affiliate earns on the first box
+  // now and on renewals (via invoice.paid) for the subscriber's first year.
+  try {
+    const aff = await resolveAffiliate(rc, session);
+    const email: string | null = session.customer_details?.email ?? null;
+    if (aff && (!email || aff.email.toLowerCase() !== email.toLowerCase())) {
+      await rc.env.DB.prepare('UPDATE subscriptions SET affiliate_id = ? WHERE id = ?').bind(aff.id, subId).run();
+      await recordCommission(rc.env, aff, 'first_order', session.amount_total ?? 0, session.id, null);
+    }
+  } catch (err) {
+    console.error('Affiliate subscription attribution failed:', err);
+  }
 
   // First box ships now; renewals are consumed on invoice.paid (subscription_cycle).
   await consumeStock(rc.env, 'subscription', session.id, items.map((id) => ({ productId: id, qty: 1 })));

@@ -22,20 +22,24 @@ export const listMyOrders = requireAuth(async (_req, rc) => {
 
 export async function attachItems(rc: RequestContext, orders: OrderRow[]) {
   if (orders.length === 0) return [];
-  const placeholders = orders.map(() => '?').join(',');
-  const { results: items } = await rc.env.DB.prepare(
-    `SELECT oi.order_id, oi.product_id, oi.quantity, oi.price_at_purchase, p.name, p.slug
-     FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
-     WHERE oi.order_id IN (${placeholders})`
-  )
-    .bind(...orders.map((o) => o.id))
-    .all<OrderItemJoin>();
-
+  // SQLite caps bound variables (~100) — chunk the IN() lookups so large
+  // order lists (admin view is 200) don't blow the limit.
   const byOrder = new Map<string, OrderItemJoin[]>();
-  for (const item of items) {
-    const list = byOrder.get(item.order_id) ?? [];
-    list.push(item);
-    byOrder.set(item.order_id, list);
+  for (let i = 0; i < orders.length; i += 80) {
+    const chunk = orders.slice(i, i + 80);
+    const placeholders = chunk.map(() => '?').join(',');
+    const { results: items } = await rc.env.DB.prepare(
+      `SELECT oi.order_id, oi.product_id, oi.quantity, oi.price_at_purchase, p.name, p.slug
+       FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+       WHERE oi.order_id IN (${placeholders})`
+    )
+      .bind(...chunk.map((o) => o.id))
+      .all<OrderItemJoin>();
+    for (const item of items) {
+      const list = byOrder.get(item.order_id) ?? [];
+      list.push(item);
+      byOrder.set(item.order_id, list);
+    }
   }
 
   return orders.map((o) => ({

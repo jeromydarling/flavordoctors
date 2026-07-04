@@ -27,6 +27,10 @@ import { AdminStaff } from './pages/admin/AdminStaff';
 import { AdminInventory } from './pages/admin/AdminInventory';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
+import { Affiliates } from './pages/Affiliates';
+import { AffiliatePortal } from './pages/AffiliatePortal';
+import { AdminAffiliates } from './pages/admin/AdminAffiliates';
+import { captureAffRef } from './lib/affiliate';
 
 const ROUTE_TITLES: Record<string, string> = {
   '/': 'Flavor Doctors — Prescription-Strength Flavor, Small-Batch Sauces & Seasonings',
@@ -45,9 +49,13 @@ const ROUTE_TITLES: Record<string, string> = {
 function RouteTitle() {
   const { pathname, search } = useLocation();
   useEffect(() => {
+    const params = new URLSearchParams(search);
     // Referral links (?ref=CODE) stick until the visitor registers.
-    const ref = new URLSearchParams(search).get('ref');
+    const ref = params.get('ref');
     if (ref && /^[A-Z2-9]{6}$/.test(ref)) localStorage.setItem('fd_ref', ref);
+    // Affiliate links (?aff=hc_...) attribute checkouts for 30 days.
+    const aff = params.get('aff');
+    if (aff) captureAffRef(aff);
   }, [search]);
   useEffect(() => {
     // Product pages set their own title once the product loads.
@@ -74,6 +82,15 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/affiliates" element={<Affiliates />} />
+        <Route
+          path="/affiliates/portal"
+          element={
+            <RequireAuth>
+              <AffiliatePortal />
+            </RequireAuth>
+          }
+        />
         <Route path="/checkout/:result" element={<CheckoutResult />} />
         <Route
           path="/account"
@@ -177,6 +194,14 @@ export default function App() {
             <RequireStaff>
               <AdminInventory />
             </RequireStaff>
+          }
+        />
+        <Route
+          path="/admin/affiliates"
+          element={
+            <RequireAdmin>
+              <AdminAffiliates />
+            </RequireAdmin>
           }
         />
         <Route

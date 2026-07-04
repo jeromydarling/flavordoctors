@@ -2,6 +2,8 @@ import type { Env } from './types';
 import { sendEmail, refillReminderEmail, winBackEmail, dropOpenEmail } from './lib/email';
 import { sendMarketingEmail } from './lib/marketing';
 import { committedByProduct, onHandByProduct } from './lib/inventory';
+import { syncStripeCode } from './lib/affiliates';
+import { refreshLibrary } from './lib/library';
 import { npsSig } from './routes/nps';
 
 const SITE_URL = 'https://flavordoctors.com';
@@ -16,9 +18,32 @@ export async function runScheduled(env: Env): Promise<void> {
     lowStockAlerts(env),
     restockNotifications(env),
     npsPulse(env),
+    affiliateNightly(env),
   ]);
   for (const r of results) {
     if (r.status === 'rejected') console.error('Scheduled job failed:', r.reason);
+  }
+}
+
+/**
+ * Affiliate housekeeping: clear commissions past their refund window, retry
+ * Stripe promo-code syncs that failed, and reconcile the resource library
+ * against the live catalog (new/changed/retired products, promos).
+ */
+async function affiliateNightly(env: Env): Promise<void> {
+  const cleared = await env.DB.prepare(
+    "UPDATE affiliate_commissions SET status = 'cleared' WHERE status = 'pending' AND clears_at <= datetime('now')"
+  ).run();
+  if (cleared.meta.changes > 0) console.log(`Affiliate commissions cleared: ${cleared.meta.changes}`);
+
+  const { results: unsynced } = await env.DB.prepare(
+    "SELECT id, code FROM affiliates WHERE status = 'approved' AND code_synced = 0 AND code IS NOT NULL LIMIT 10"
+  ).all<{ id: string; code: string }>();
+  for (const aff of unsynced) await syncStripeCode(env, aff);
+
+  const library = await refreshLibrary(env);
+  if (library.generated > 0 || library.removed > 0) {
+    console.log(`Library refreshed: ${library.generated} kits regenerated, ${library.removed} removed`);
   }
 }
 

@@ -8,7 +8,8 @@ const LIVE = LIVE_SUB_STATUSES.map(() => '?').join(',');
 
 /** Start a Monthly Rx Box subscription via Stripe Checkout (auth required). */
 export const createSubscription = requireAuth(async (req, rc) => {
-  const body = await readJson<{ tier?: string; cadence?: string }>(req);
+  const body = await readJson<{ tier?: string; cadence?: string; affiliateRef?: string }>(req);
+  const affiliateRef = /^hc_[a-z0-9]{1,40}$/.test(body?.affiliateRef ?? '') ? body!.affiliateRef! : null;
   const tierKey = body?.tier as TierKey | undefined;
   if (!tierKey || !(tierKey in TIERS)) return errorResponse('Unknown subscription tier');
   const cadenceKey = (body?.cadence ?? 'monthly') as CadenceKey;
@@ -65,7 +66,13 @@ export const createSubscription = requireAuth(async (req, rc) => {
         },
       },
     ],
-    metadata: { kind: 'subscription', tier: tierKey, cadence: cadenceKey, user_id: user.id },
+    metadata: {
+      kind: 'subscription',
+      tier: tierKey,
+      cadence: cadenceKey,
+      user_id: user.id,
+      ...(affiliateRef ? { affiliate_ref: affiliateRef } : {}),
+    },
     subscription_data: {
       metadata: { tier: tierKey, cadence: cadenceKey, user_id: user.id },
     },

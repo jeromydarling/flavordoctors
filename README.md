@@ -75,6 +75,15 @@ Subscription-based e-commerce for a small-batch sauce & seasoning brand, built e
 - **Account settings** in My Chart — preferred name, marketing-consent toggle (feeds the same consent flag campaigns check), change password.
 - **Self-service deletion** — password-confirmed; blocked while an Rx Box subscription is live; removes profile, points, ratings, reviews, and marketing contact while keeping order records (anonymized) for accounting.
 
+## The House Call Network (affiliates)
+
+- **Program** (/affiliates) — creators apply with links + pitch; approved members get a `?aff=` link and a vanity Stripe promo code (15% off for buyers). Rates: 25% first orders / 10% subscription renewals for 12 months, tiering up to 30%/15% (Attending at $1k attributed revenue, Chief at $5k) automatically.
+- **AI screening** — Llama scores every application against a written rubric (audience fit, authenticity, brand safety, red flags). Score ≥75 with no flags auto-approves and provisions the Stripe code on the spot; clear-cut spam auto-declines; everything else queues for a human with the AI's reasoning attached. **AI down → applications queue (fail closed).** All decisions audited.
+- **Attribution** — promo code (via Stripe metadata) beats the 30-day `?aff=` link cookie; self-purchases earn nothing. Commissions ledger mirrors the points ledger: idempotent per payment, pending → cleared after the 30-day refund window (45 on probation), refunds void/claw back automatically via `charge.refunded`.
+- **Payouts** — one admin button per month: cleared balances ≥ $25 pay out as store credit at 1.25× (points) or cash via Stripe Connect Express transfers. Probation caps the first payout at $200 and lifts after it. Behavioral flags (zero-click conversions, refund-rate outliers) block payout and surface in admin.
+- **Affiliate Portal** (/affiliates/portal) — link/code with copy buttons, clicks/conversions/earnings, tier progress, payout method + Connect onboarding, and **the Medical Library**: evergreen playbooks (first week, FTC disclosure, brand voice, how money works), per-product one-sheets (live facts + AI hooks/angles/dos-don'ts + review quotes + recipes), and active-sale copy kits — every snippet pre-personalized with the affiliate's own code and link.
+- **Self-maintaining library** — the nightly cron hashes each product/promotion and regenerates only stale kits (template fallback offline, capped per night); retired products and ended sales drop out automatically. Nobody curates it.
+
 ## Staff roles & audit trail (admin)
 
 - **Roles** — `customer` (default), `support`, `admin`. Support reps get the customer-facing wing: Orders, Customers, Inbox, Analytics. Admins get everything plus **Staff** (/admin/staff).
@@ -293,6 +302,10 @@ GET  /api/admin/inventory                     POST /api/admin/inventory/receive 
 PUT  /api/admin/inventory/:id/reorder-point
 GET|POST /api/admin/recipes                   POST /api/admin/recipes/generate
 POST /api/admin/recipes/:id/publish           DELETE /api/admin/recipes/:id
+POST /api/affiliates/apply | connect          GET /api/affiliates/me | library
+PUT  /api/affiliates/payout-method            POST /api/aff/click
+GET  /api/admin/affiliates                    POST /api/admin/affiliates/:id/decision
+POST /api/admin/affiliates/payouts/release
 POST /api/webhooks/stripe                     GET /images/products/{slug}/hero.png
 ```
 

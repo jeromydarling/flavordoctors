@@ -19,6 +19,7 @@ const TABS: { to: string; label: string; adminOnly?: boolean }[] = [
   { to: '/admin/marketing', label: 'Marketing', adminOnly: true },
   { to: '/admin/promos', label: 'Sales & Pages', adminOnly: true },
   { to: '/admin/content', label: 'Content Studio', adminOnly: true },
+  { to: '/admin/affiliates', label: 'Affiliates', adminOnly: true },
   { to: '/admin/staff', label: 'Staff', adminOnly: true },
 ];
 
