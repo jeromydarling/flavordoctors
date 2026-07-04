@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
 import type { Product } from '../../lib/types';
+import { RichTextEditor } from '../../components/RichTextEditor';
 import { AdminNav } from './AdminNav';
 
 const CONTENT_TYPES = [
@@ -123,7 +124,7 @@ function RecipeStudio({ products }: { products: Product[] }) {
             {editingId && <p className="text-xs font-bold uppercase tracking-wider text-gold">Editing — the page URL stays the same</p>}
             <input aria-label="Recipe title" className="input !py-2 font-bold" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
             <textarea aria-label="Recipe intro" className="input !text-sm" rows={2} value={draft.intro} onChange={(e) => setDraft({ ...draft, intro: e.target.value })} />
-            <textarea aria-label="Recipe body HTML" className="input font-mono !text-xs" rows={10} value={draft.bodyHtml} onChange={(e) => setDraft({ ...draft, bodyHtml: e.target.value })} />
+            <RichTextEditor label="Recipe body" value={draft.bodyHtml} onChange={(bodyHtml) => setDraft({ ...draft, bodyHtml })} />
             <div className="flex gap-2">
               {editingId ? (
                 <button className="btn-rx !px-4 !py-2 !text-sm" disabled={busy} onClick={() => save(false)}>

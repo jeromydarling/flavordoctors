@@ -19,10 +19,16 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 /** Strip everything but a small whitelist of formatting tags from AI/admin HTML. */
 function sanitizeBody(html: string): string {
-  return html
-    .replace(/<\s*(script|style|iframe|object|embed|form|link|meta)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
-    .replace(/<(?!\/?(h2|h3|p|ul|ol|li|strong|em|br)\b)[^>]*>/gi, '')
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  return (
+    html
+      // Rich-text editors emit browser-flavored tags — normalize them first.
+      .replace(/<(\/?)b(\s[^>]*)?>/gi, '<$1strong>')
+      .replace(/<(\/?)i(\s[^>]*)?>/gi, '<$1em>')
+      .replace(/<(\/?)div(\s[^>]*)?>/gi, '<$1p>')
+      .replace(/<\s*(script|style|iframe|object|embed|form|link|meta)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+      .replace(/<(?!\/?(h2|h3|p|ul|ol|li|strong|em|br)\b)[^>]*>/gi, '')
+      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  );
 }
 
 function pageShell(title: string, description: string, canonical: string, inner: string, jsonLd?: string): Response {

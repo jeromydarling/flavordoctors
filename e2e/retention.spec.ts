@@ -91,16 +91,26 @@ test.describe.serial('Restock alerts, Treatment Plans & NPS', () => {
     // Editing: tweak the intro in the Content Studio; the live page updates
     // at the SAME url (slug is SEO-stable)
     const newIntro = `Edited intro for run ${RUN} — now with 30% more bedside manner.`;
+    const bonusLine = `Bonus tip for run ${RUN}: apply twice daily.`;
     await page.goto('/admin/content');
     const row = page.locator('li', { hasText: title });
     await row.getByRole('button', { name: /Edit/ }).click();
     await expect(page.getByText('Editing — the page URL stays the same')).toBeVisible();
     await page.getByLabel('Recipe intro').fill(newIntro);
+
+    // The body opens in the rich editor with formatted headings, not raw HTML
+    const editor = page.getByRole('textbox', { name: 'Recipe body' });
+    await expect(editor.locator('h2', { hasText: 'Treatment protocol' })).toBeVisible();
+    await editor.click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type(` ${bonusLine}`);
+
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Changes saved', { exact: false })).toBeVisible();
 
     await page.goto(`/treatment-plans/${slug}`);
     await expect(page.getByText(newIntro)).toBeVisible();
+    await expect(page.getByText(bonusLine)).toBeVisible();
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
   });
 
