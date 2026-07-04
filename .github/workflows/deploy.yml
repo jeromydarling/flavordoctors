@@ -56,6 +56,7 @@ jobs:
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GA4_API_SECRET: ${{ secrets.GA4_API_SECRET }}
         run: |
           sync() {
             if [ -n "$2" ]; then
@@ -68,6 +69,7 @@ jobs:
           sync STRIPE_SECRET_KEY "$STRIPE_SECRET_KEY"
           sync STRIPE_WEBHOOK_SECRET "$STRIPE_WEBHOOK_SECRET"
           sync RESEND_API_KEY "$RESEND_API_KEY"
+          sync GA4_API_SECRET "$GA4_API_SECRET"
 
           # JWT_SECRET: use the GitHub secret if provided; otherwise auto-generate
           # one the first time only (regenerating would invalidate all sessions).
