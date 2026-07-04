@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { PromoVideo } from '../components/PromoVideo';
 
 const TIER_CARDS = [
   { name: 'Resident', first: '25%', recurring: '10%', note: 'Where everyone starts' },
@@ -146,6 +147,15 @@ export function Affiliates() {
         <li>💸 <strong>Monthly payouts</strong> over $25 — cash to your bank via Stripe, or store credit at 1.25×.</li>
         <li>🤝 <strong>Micro-creators welcome</strong>: a few hundred engaged followers beats 50k passive ones.</li>
       </ul>
+
+      {/* The pitch, in 37 seconds */}
+      <div className="mt-10">
+        <PromoVideo
+          src="/media/promo-affiliates.mp4"
+          poster="/media/promo-affiliates-poster.jpg"
+          title="The pitch (0:37)"
+        />
+      </div>
 
       {/* How we stack up */}
       <h2 className="mt-12 text-3xl font-black">How we stack up</h2>

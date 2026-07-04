@@ -5,6 +5,7 @@ import type { Product } from '../lib/types';
 import { COLLECTIONS, TIERS, formatPrice } from '../lib/types';
 import { ProductCard } from '../components/ProductCard';
 import { LogoMark } from '../components/Logo';
+import { PromoVideo } from '../components/PromoVideo';
 
 function StarterPackButton() {
   const [busy, setBusy] = useState(false);
@@ -97,6 +98,24 @@ export function Home() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* The 60-second consult */}
+      <section className="mx-auto max-w-4xl px-4 pb-16">
+        <div className="text-center">
+          <p className="font-mono text-sm uppercase tracking-widest text-rx">Now seeing patients</p>
+          <h2 className="mt-2 text-4xl font-black md:text-5xl">The 60-Second Consult</h2>
+          <p className="mx-auto mt-3 max-w-xl text-medical/70">
+            Chronic weeknight blandness is treatable. Watch the consult, get your diagnosis.
+          </p>
+        </div>
+        <div className="mt-8">
+          <PromoVideo
+            src="/media/promo-home.mp4"
+            poster="/media/promo-home-poster.jpg"
+            title="Watch the consult (0:47)"
+          />
         </div>
       </section>
 
