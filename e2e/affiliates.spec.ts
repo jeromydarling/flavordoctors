@@ -32,6 +32,22 @@ test.describe.serial('Affiliate program & library', () => {
     await expect(page.getByRole('heading', { name: 'Prescribe flavor. Get paid.' })).toBeVisible();
     await expect(page.getByText('Chief of Medicine')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Sign in to apply' })).toBeVisible();
+
+    // Comparison table: our column vs published alternatives
+    await expect(page.getByRole('heading', { name: 'How we stack up' })).toBeVisible();
+    const row = page.getByRole('row', { name: /First-order commission/ });
+    await expect(row.getByText('25–30%')).toBeVisible();
+    await expect(row.getByText('1%', { exact: true })).toBeVisible();
+
+    // Scenario cards + live calculator with honest disclaimer
+    await expect(page.getByText('The steady creator')).toBeVisible();
+    const monthly = page.getByTestId('calc-monthly');
+    await expect(monthly).toHaveText('$222'); // defaults: 10 orders + 3 subs
+    await page.getByLabel(/One-time orders you send per month/).fill('100');
+    await page.getByLabel(/New Rx Box subscribers per month/).fill('30');
+    await expect(monthly).toHaveText('$2,215');
+    await expect(page.getByTestId('calc-yearly')).toHaveText('$26,580');
+    await expect(page.getByText('Earnings disclaimer:', { exact: false })).toBeVisible();
   });
 
   test('application validates, then queues for a human when AI is unavailable', async ({ page }) => {

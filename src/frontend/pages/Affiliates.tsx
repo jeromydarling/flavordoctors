@@ -9,6 +9,79 @@ const TIER_CARDS = [
   { name: 'Chief of Medicine', first: '30%', recurring: '15%', note: 'At $5,000 + early access to new drops' },
 ];
 
+// Comparison uses widely published program terms (footnoted on the page).
+const COMPARISON: { label: string; us: string; amazon: string; typical: string }[] = [
+  { label: 'First-order commission', us: '25–30%', amazon: '1%', typical: '10–15%' },
+  { label: 'Subscription renewals', us: '10–15% for 12 months', amazon: 'None', typical: 'Rarely offered' },
+  { label: 'Discount for your audience', us: '15% off with your code', amazon: 'None', typical: 'Sometimes' },
+  { label: 'Attribution window', us: '30 days + spoken codes', amazon: '24-hour cookie', typical: '~30 days, link only' },
+  { label: 'Store-credit bonus option', us: 'Paid at 1.25×', amazon: '—', typical: 'No' },
+  { label: 'Micro-creators welcome', us: 'Yes — engagement over size', amazon: 'Yes', typical: 'Often 5k+ followers required' },
+  { label: 'Ready-to-post content kit', us: 'Auto-updating library, your code baked in', amazon: 'No', typical: 'A PDF, if that' },
+];
+
+// Earnings model — the same conservative assumptions everywhere on this page:
+// $40 avg one-time order, $54/mo Signature box, subscribers stay ~6 months,
+// Resident rates (tiers only push these numbers UP).
+const PER_ORDER = 10; // 25% of $40
+const PER_SUB = 40.5; // 25% of first $54 box + five renewals at 10%
+
+function EarningsCalculator() {
+  const [orders, setOrders] = useState(10);
+  const [subs, setSubs] = useState(3);
+  const monthly = orders * PER_ORDER + subs * PER_SUB;
+  const dollars = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  return (
+    <div className="rx-card mt-6 !p-5">
+      <h3 className="font-bold">Run your own numbers</h3>
+      <div className="mt-3 grid gap-4 md:grid-cols-2">
+        <div>
+          <label htmlFor="calc-orders" className="block text-sm font-bold">
+            One-time orders you send per month: <span className="text-gold">{orders}</span>
+          </label>
+          <input
+            id="calc-orders"
+            type="range"
+            min={0}
+            max={100}
+            value={orders}
+            className="mt-1 w-full accent-rx"
+            onChange={(e) => setOrders(parseInt(e.target.value, 10))}
+          />
+        </div>
+        <div>
+          <label htmlFor="calc-subs" className="block text-sm font-bold">
+            New Rx Box subscribers per month: <span className="text-gold">{subs}</span>
+          </label>
+          <input
+            id="calc-subs"
+            type="range"
+            min={0}
+            max={30}
+            value={subs}
+            className="mt-1 w-full accent-rx"
+            onChange={(e) => setSubs(parseInt(e.target.value, 10))}
+          />
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-6">
+        <div>
+          <p className="text-xs font-bold uppercase text-medical/60">Steady monthly earnings</p>
+          <p className="text-4xl font-black text-rx" data-testid="calc-monthly">{dollars(monthly)}</p>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase text-medical/60">Year one</p>
+          <p className="text-4xl font-black text-gold" data-testid="calc-yearly">{dollars(monthly * 12)}</p>
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-medical/60">
+        Assumes a $40 average order, the $54/mo Signature box, subscribers staying ~6 months on average, and starting
+        Resident rates — tier upgrades at $1k and $5k referred revenue only raise these numbers.
+      </p>
+    </div>
+  );
+}
+
 export function Affiliates() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -73,6 +146,68 @@ export function Affiliates() {
         <li>💸 <strong>Monthly payouts</strong> over $25 — cash to your bank via Stripe, or store credit at 1.25×.</li>
         <li>🤝 <strong>Micro-creators welcome</strong>: a few hundred engaged followers beats 50k passive ones.</li>
       </ul>
+
+      {/* How we stack up */}
+      <h2 className="mt-12 text-3xl font-black">How we stack up</h2>
+      <div className="mt-4 overflow-x-auto rounded-xl border-2 border-navy-lighter">
+        <table className="w-full min-w-[640px] text-left text-sm">
+          <thead className="bg-navy-light uppercase tracking-wide text-medical/60">
+            <tr>
+              <th className="p-3"></th>
+              <th className="p-3 text-rx">Flavor Doctors</th>
+              <th className="p-3">Amazon Associates (grocery)</th>
+              <th className="p-3">Typical food brand program</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-navy-lighter">
+            {COMPARISON.map((row) => (
+              <tr key={row.label}>
+                <td className="p-3 font-bold">{row.label}</td>
+                <td className="p-3 font-bold text-rx">{row.us}</td>
+                <td className="p-3 text-medical/70">{row.amazon}</td>
+                <td className="p-3 text-medical/70">{row.typical}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-medical/60">
+        Comparison reflects widely published program terms as of mid-2026 — always check each program for current rates.
+      </p>
+
+      {/* Realistic numbers */}
+      <h2 className="mt-12 text-3xl font-black">What can you actually make?</h2>
+      <p className="mt-2 text-medical/70">
+        Honest math, not hype — same assumptions as the calculator below, at starting Resident rates.
+      </p>
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div className="rx-card !p-5">
+          <p className="font-bold text-gold">The weekend poster</p>
+          <p className="text-sm text-medical/60">Posts when a dish turns out great. Sends ~2 orders and 1 subscriber a month.</p>
+          <p className="mt-3 text-3xl font-black text-rx">~$60<span className="text-base font-bold text-medical/60">/mo</span></p>
+          <p className="text-sm text-medical/60">≈ $730 in year one — free groceries money.</p>
+        </div>
+        <div className="rx-card !border-gold/60 !p-5">
+          <p className="font-bold text-gold">The steady creator</p>
+          <p className="text-sm text-medical/60">Weekly food content, engaged niche audience. ~10 orders and 3 subscribers a month.</p>
+          <p className="mt-3 text-3xl font-black text-rx">~$220<span className="text-base font-bold text-medical/60">/mo</span></p>
+          <p className="text-sm text-medical/60">≈ $2,660 in year one — a real side income.</p>
+        </div>
+        <div className="rx-card !p-5">
+          <p className="font-bold text-gold">The food-channel pro</p>
+          <p className="text-sm text-medical/60">Cooking is the channel. ~40 orders and 10 subscribers a month.</p>
+          <p className="mt-3 text-3xl font-black text-rx">~$800+<span className="text-base font-bold text-medical/60">/mo</span></p>
+          <p className="text-sm text-medical/60">≈ $9,700+ in year one — and this volume reaches Chief tier, which pays more.</p>
+        </div>
+      </div>
+
+      <EarningsCalculator />
+
+      <p className="mt-3 text-xs text-medical/60">
+        <strong>Earnings disclaimer:</strong> these figures are illustrations, not promises or typical results. What you
+        earn depends entirely on your audience, content, and effort — many affiliates will earn less, some will earn
+        more, and nobody is guaranteed anything except our published commission rates.
+      </p>
 
       <div className="mt-10 rounded-xl border-2 border-navy-lighter p-6">
         {!user ? (
