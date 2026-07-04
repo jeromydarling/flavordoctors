@@ -114,7 +114,7 @@ export function Home() {
           <PromoVideo
             src="/media/promo-home.mp4"
             poster="/media/promo-home-poster.jpg"
-            title="Watch the consult (0:47)"
+            title="Watch the consult (0:45)"
           />
         </div>
       </section>

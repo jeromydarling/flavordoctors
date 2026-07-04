@@ -153,7 +153,7 @@ export function Affiliates() {
         <PromoVideo
           src="/media/promo-affiliates.mp4"
           poster="/media/promo-affiliates-poster.jpg"
-          title="The pitch (0:37)"
+          title="The pitch (0:35)"
         />
       </div>
 
