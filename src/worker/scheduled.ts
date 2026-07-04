@@ -8,8 +8,15 @@ import { npsSig } from './routes/nps';
 
 const SITE_URL = 'https://flavordoctors.com';
 
-/** Nightly cron: lifecycle flows, refill reminders, win-backs, drop + restock notifications, low-stock alerts, NPS pulse. */
-export async function runScheduled(env: Env): Promise<void> {
+/**
+ * Cron dispatch. The frequent trigger only drains the media-import queue;
+ * the daily 16:00 UTC trigger runs the full lifecycle batch as before.
+ */
+export async function runScheduled(env: Env, cron?: string): Promise<void> {
+  if (cron === '*/10 * * * *') {
+    await processMediaImports(env).catch((e) => console.error('Media import failed:', e));
+    return;
+  }
   const results = await Promise.allSettled([
     runFlows(env),
     refillReminders(env),
@@ -19,9 +26,47 @@ export async function runScheduled(env: Env): Promise<void> {
     restockNotifications(env),
     npsPulse(env),
     affiliateNightly(env),
+    processMediaImports(env),
   ]);
   for (const r of results) {
     if (r.status === 'rejected') console.error('Scheduled job failed:', r.reason);
+  }
+}
+
+/**
+ * Drain the media-import queue: fetch each pending URL (the Worker has open
+ * egress, unlike dev sandboxes) and store the bytes in R2 under cdn/, where
+ * serveMedia exposes them at /cdn/*. Rows are inserted by operators only —
+ * there is no public write path to this table.
+ */
+async function processMediaImports(env: Env): Promise<void> {
+  const { results } = await env.DB.prepare(
+    "SELECT id, url, r2_key FROM media_imports WHERE status = 'pending' ORDER BY id LIMIT 3"
+  ).all<{ id: number; url: string; r2_key: string }>();
+
+  for (const row of results) {
+    try {
+      if (!row.r2_key.startsWith('cdn/')) throw new Error('r2_key must start with cdn/');
+      const res = await fetch(row.url);
+      if (!res.ok) throw new Error(`Upstream responded ${res.status}`);
+      const body = await res.arrayBuffer();
+      if (body.byteLength > 100 * 1024 * 1024) throw new Error('File exceeds 100 MB limit');
+      const contentType = res.headers.get('Content-Type') ?? 'application/octet-stream';
+      await env.PRODUCT_IMAGES.put(row.r2_key, body, { httpMetadata: { contentType } });
+      await env.DB.prepare(
+        "UPDATE media_imports SET status = 'done', content_type = ?, size_bytes = ?, completed_at = datetime('now') WHERE id = ?"
+      )
+        .bind(contentType, body.byteLength, row.id)
+        .run();
+      console.log(`Media imported: ${row.r2_key} (${body.byteLength} bytes)`);
+    } catch (e) {
+      await env.DB.prepare(
+        "UPDATE media_imports SET status = 'error', error = ?, completed_at = datetime('now') WHERE id = ?"
+      )
+        .bind(e instanceof Error ? e.message : String(e), row.id)
+        .run();
+      console.error(`Media import failed for ${row.r2_key}:`, e);
+    }
   }
 }
 

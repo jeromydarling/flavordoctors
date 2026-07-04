@@ -52,6 +52,7 @@ import {
 } from './routes/admin';
 import { stripeWebhook } from './routes/webhook';
 import { serveImage } from './routes/images';
+import { serveMedia } from './routes/media';
 import {
   joinList,
   unsubscribe,
@@ -243,7 +244,9 @@ const router = new Router()
   // Stripe webhooks
   .post('/api/webhooks/stripe', stripeWebhook)
   // Product images from R2
-  .get('/images/*', serveImage);
+  .get('/images/*', serveImage)
+  // Imported media (promo videos etc.) from R2, with range support
+  .get('/cdn/*', serveMedia);
 
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -256,7 +259,7 @@ export default {
     }
     const matched = await router.handle(req, env, ctx);
     if (matched) return matched;
-    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/images/')) {
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/images/') || url.pathname.startsWith('/cdn/')) {
       return errorResponse('Not found', 404);
     }
     // SEO surfaces
@@ -271,7 +274,7 @@ export default {
     return withPageMeta(req, env, assetResponse);
   },
 
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runScheduled(env));
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runScheduled(env, event.cron));
   },
 } satisfies ExportedHandler<Env>;

@@ -34,7 +34,7 @@ name = "EMAIL"
 
 # Nightly at 16:00 UTC: refill reminders, win-back emails, drop notifications.
 [triggers]
-crons = ["0 16 * * *"]
+crons = ["0 16 * * *", "*/10 * * * *"]
 
 [vars]
 # Comma-separated list of emails that are granted admin on register/login.
