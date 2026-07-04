@@ -196,7 +196,11 @@ export async function withPageMeta(req: Request, env: Env, res: Response): Promi
     ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${env.GA4_MEASUREMENT_ID}"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${env.GA4_MEASUREMENT_ID}');</script>`
     : '';
-  if (!meta && !gtag) return res;
+  // Search Console ownership proof (meta-tag method for a URL-prefix property).
+  const gsc = env.GSC_VERIFICATION
+    ? `<meta name="google-site-verification" content="${env.GSC_VERIFICATION.replace(/"/g, '')}">`
+    : '';
+  if (!meta && !gtag && !gsc) return res;
 
   let rewriter = new HTMLRewriter();
   if (meta) {
@@ -208,7 +212,7 @@ export async function withPageMeta(req: Request, env: Env, res: Response): Promi
   }
   rewriter = rewriter.on('head', {
     element(el) {
-      el.append(`${meta ? headTags(meta, url.origin) : ''}${gtag}`, { html: true });
+      el.append(`${gsc}${meta ? headTags(meta, url.origin) : ''}${gtag}`, { html: true });
     },
   });
   return rewriter.transform(res);

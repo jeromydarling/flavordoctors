@@ -45,6 +45,8 @@ test.describe('SEO surfaces', () => {
     expect(html).toContain('"@type":"Organization"');
     expect(html).toContain('"@type":"WebSite"');
     expect(html).toContain('property="og:title"');
+    // Search Console ownership proof from the GSC_VERIFICATION var
+    expect(html).toMatch(/<meta name="google-site-verification" content="[^"]+">/);
   });
 
   test('product page HTML gets page-specific title, OG tags, and Product schema', async ({ request }) => {
