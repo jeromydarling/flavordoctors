@@ -6,6 +6,9 @@ import { syncStripeCode } from './lib/affiliates';
 import { refreshLibrary } from './lib/library';
 import { npsSig } from './routes/nps';
 
+import { emitEvent } from './lib/events';
+import { processPendingEvents } from './lib/socialKits';
+
 const SITE_URL = 'https://flavordoctors.com';
 
 /**
@@ -15,6 +18,8 @@ const SITE_URL = 'https://flavordoctors.com';
 export async function runScheduled(env: Env, cron?: string): Promise<void> {
   if (cron === '*/10 * * * *') {
     await processMediaImports(env).catch((e) => console.error('Media import failed:', e));
+    await processPendingEvents(env).catch((e) => console.error('Social kit drain failed:', e));
+    await dropLiveEvents(env).catch((e) => console.error('Drop-live sweep failed:', e));
     return;
   }
   const results = await Promise.allSettled([
@@ -27,6 +32,7 @@ export async function runScheduled(env: Env, cron?: string): Promise<void> {
     npsPulse(env),
     affiliateNightly(env),
     processMediaImports(env),
+    processPendingEvents(env),
   ]);
   for (const r of results) {
     if (r.status === 'rejected') console.error('Scheduled job failed:', r.reason);
@@ -102,6 +108,10 @@ async function restockNotifications(env: Env): Promise<void> {
      WHERE a.notified = 0 AND p.is_active = 1 AND inv.on_hand > 0
      LIMIT 50`
   ).all<{ email: string; product_id: string; name: string; slug: string }>();
+  const day = new Date().toISOString().slice(0, 10);
+  for (const pid of new Set(results.map((r) => r.product_id))) {
+    await emitEvent(env, 'back_in_stock', pid, `back_in_stock:${pid}:${day}`);
+  }
 
   for (const row of results) {
     await sendEmail(
@@ -172,6 +182,11 @@ async function lowStockAlerts(env: Env): Promise<void> {
   if (low.length === 0) return;
 
   const now = new Date();
+  const weekRef = `${now.getUTCFullYear()}-w${Math.ceil(((now.getTime() - Date.UTC(now.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7)}`;
+  for (const r of low) {
+    // Honest urgency only: still purchasable, genuinely low — never "sold out" hype.
+    if (r.available > 0) await emitEvent(env, 'low_stock', r.id, `low_stock:${r.id}:${weekRef}`);
+  }
   const week = Math.ceil(((now.getTime() - Date.UTC(now.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
   const ref = `${now.getUTCFullYear()}-w${week}`;
   const sent = await env.DB.prepare("SELECT 1 FROM sent_emails WHERE email = ? AND kind = 'low_stock' AND ref = ?")
@@ -318,4 +333,14 @@ async function dropNotifications(env: Env): Promise<void> {
       .run();
   }
   if (results.length > 0) console.log(`Drop notifications sent: ${results.length}`);
+}
+
+/** Drops whose start time has passed fire a one-time drop_live event. */
+async function dropLiveEvents(env: Env): Promise<void> {
+  const { results } = await env.DB.prepare(
+    "SELECT id, name FROM products WHERE is_drop = 1 AND is_active = 1 AND drop_starts_at IS NOT NULL AND drop_starts_at <= datetime('now') AND (drop_stock IS NULL OR drop_stock > 0)"
+  ).all<{ id: string; name: string }>();
+  for (const p of results) {
+    await emitEvent(env, 'drop_live', p.id, `drop_live:${p.id}`, { name: p.name });
+  }
 }

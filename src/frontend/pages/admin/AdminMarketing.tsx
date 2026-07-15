@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '../../lib/api';
 import { PageSpinner } from '../../components/Protected';
 import { AdminNav } from './AdminNav';
+import { DraftsPanel } from './DraftsPanel';
 
 interface Campaign {
   id: string; name: string; segment: string; subject: string; subject_b: string | null;
@@ -67,6 +68,8 @@ export function AdminMarketing() {
     <div className="mx-auto max-w-6xl px-4 py-12">
       <AdminNav />
       {message && <p className="mb-4 rounded bg-rx/10 p-3 font-semibold text-rx">{message}</p>}
+
+      <DraftsPanel />
 
       {/* Contacts */}
       <div className="flex flex-wrap gap-4">

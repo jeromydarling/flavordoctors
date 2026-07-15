@@ -32,6 +32,31 @@ export async function runChat(env: Env, messages: ChatMessage[], maxTokens = 512
   return text;
 }
 
+/**
+ * Usage-logged chat: same as runChat but records an ai_usage ledger row so
+ * spend is inspectable. New AI features should prefer this entry point.
+ */
+export async function runChatLogged(
+  env: Env,
+  operation: string,
+  messages: ChatMessage[],
+  maxTokens = 512
+): Promise<string> {
+  const text = await runChat(env, messages, maxTokens);
+  const tokensIn = Math.ceil(messages.reduce((n, m) => n + m.content.length, 0) / 4);
+  const tokensOut = Math.ceil(text.length / 4);
+  try {
+    await env.DB.prepare(
+      'INSERT INTO ai_usage (provider, model, operation, tokens_in, tokens_out) VALUES (?, ?, ?, ?, ?)'
+    )
+      .bind('workers-ai', TEXT_MODEL, operation, tokensIn, tokensOut)
+      .run();
+  } catch (err) {
+    console.error('ai_usage log failed:', err);
+  }
+  return text;
+}
+
 /** Generate a prescription-style product description with Workers AI. */
 export async function generateDescription(env: Env, product: ProductRow): Promise<string> {
   const prompt = `You are the copywriter for "Flavor Doctors", a premium small-batch sauce and seasoning brand with a playful medical/prescription theme.

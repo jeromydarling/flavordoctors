@@ -16,6 +16,7 @@ import {
 import { privacyPolicy, termsOfService, shippingReturns } from './routes/legal';
 import { captureException } from './lib/sentry';
 import { getBrandSettings, updateBrandSettings, previewBrandEmail } from './routes/adminBrand';
+import { listDrafts, updateDraft, draftToCampaign, processDraftEvents } from './routes/adminDrafts';
 import { npsRespond } from './routes/nps';
 import {
   applyAffiliate,
@@ -248,6 +249,11 @@ const router = new Router()
   .put('/api/admin/recipes/:id', updateRecipe)
   .post('/api/admin/recipes/:id/publish', setRecipePublished)
   .delete('/api/admin/recipes/:id', deleteRecipe)
+  // Auto-drafted marketing kits (event-driven)
+  .get('/api/admin/marketing/drafts', listDrafts)
+  .put('/api/admin/marketing/drafts/:id', updateDraft)
+  .post('/api/admin/marketing/drafts/:id/to-campaign', draftToCampaign)
+  .post('/api/admin/marketing/drafts/process', processDraftEvents)
   // Brand Studio
   .get('/api/admin/brand', getBrandSettings)
   .put('/api/admin/brand', updateBrandSettings)

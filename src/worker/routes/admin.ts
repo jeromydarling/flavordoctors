@@ -3,6 +3,7 @@ import { COLLECTIONS } from '../types';
 import { json, errorResponse, newId, readJson, slugify } from '../lib/util';
 import { requireAdmin, requireStaff } from '../lib/auth';
 import { audit } from '../lib/audit';
+import { emitEvent } from '../lib/events';
 import { generateDescription, generateProductImage } from '../lib/ai';
 import { publicProduct } from './products';
 import { attachItems } from './account';
@@ -79,6 +80,9 @@ export const adminCreateProduct = requireAdmin(async (req, rc) => {
     .run();
   const product = await rc.env.DB.prepare('SELECT * FROM products WHERE id = ?').bind(id).first<ProductRow>();
   rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'product_create', id, b.name!.trim()));
+  if (b.isActive !== false) {
+    rc.ctx.waitUntil(emitEvent(rc.env, 'product_published', id, `product_published:${id}`, { name: b.name!.trim() }));
+  }
   return json({ product: adminProduct(product!) }, 201);
 });
 
@@ -108,6 +112,11 @@ export const adminUpdateProduct = requireAdmin(async (req, rc) => {
     .run();
   const product = await rc.env.DB.prepare('SELECT * FROM products WHERE id = ?').bind(existing.id).first<ProductRow>();
   rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'product_update', existing.id, b.name!.trim()));
+  // Publish transition (inactive -> active) fires the launch event; the
+  // UNIQUE dedupe key means later toggles never create a second kit.
+  if (existing.is_active !== 1 && b.isActive !== false) {
+    rc.ctx.waitUntil(emitEvent(rc.env, 'product_published', existing.id, `product_published:${existing.id}`, { name: b.name!.trim() }));
+  }
   return json({ product: adminProduct(product!) });
 });
 
