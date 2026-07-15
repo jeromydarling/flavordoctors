@@ -60,7 +60,7 @@ export const adminListProducts = requireAdmin(async (_req, rc) => {
 });
 
 export const adminCreateProduct = requireAdmin(async (req, rc) => {
-  const body = await readJson<ProductInput>(req);
+  const body = await readJson<ProductInput & { ingredients?: string | null; allergens?: string | null }>(req);
   const err = validateProductInput(body);
   if (err) return errorResponse(err);
   const b = body!;
@@ -69,11 +69,12 @@ export const adminCreateProduct = requireAdmin(async (req, rc) => {
   const dup = await rc.env.DB.prepare('SELECT id FROM products WHERE slug = ?').bind(slug).first();
   if (dup) return errorResponse(`A product with slug "${slug}" already exists`, 409);
   await rc.env.DB.prepare(
-    'INSERT INTO products (id, slug, name, collection, description, price, is_active, is_bestseller, is_drop, drop_starts_at, drop_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO products (id, slug, name, collection, description, price, is_active, is_bestseller, is_drop, drop_starts_at, drop_stock, ingredients, allergens) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   )
     .bind(
       id, slug, b.name!.trim(), b.collection, b.description!.trim(), b.price,
-      b.isActive === false ? 0 : 1, b.isBestseller ? 1 : 0, ...dropBindings(b)
+      b.isActive === false ? 0 : 1, b.isBestseller ? 1 : 0, ...dropBindings(b),
+      b.ingredients?.trim() || null, b.allergens?.trim() || null
     )
     .run();
   const product = await rc.env.DB.prepare('SELECT * FROM products WHERE id = ?').bind(id).first<ProductRow>();
@@ -84,12 +85,12 @@ export const adminCreateProduct = requireAdmin(async (req, rc) => {
 export const adminUpdateProduct = requireAdmin(async (req, rc) => {
   const existing = await rc.env.DB.prepare('SELECT * FROM products WHERE id = ?').bind(rc.params.id).first<ProductRow>();
   if (!existing) return errorResponse('Product not found', 404);
-  const body = await readJson<ProductInput & { aiDescription?: string | null }>(req);
+  const body = await readJson<ProductInput & { aiDescription?: string | null; ingredients?: string | null; allergens?: string | null }>(req);
   const err = validateProductInput(body);
   if (err) return errorResponse(err);
   const b = body!;
   await rc.env.DB.prepare(
-    'UPDATE products SET name = ?, collection = ?, description = ?, price = ?, is_active = ?, is_bestseller = ?, is_drop = ?, drop_starts_at = ?, drop_stock = ?, ai_description = ? WHERE id = ?'
+    'UPDATE products SET name = ?, collection = ?, description = ?, price = ?, is_active = ?, is_bestseller = ?, is_drop = ?, drop_starts_at = ?, drop_stock = ?, ai_description = ?, ingredients = ?, allergens = ? WHERE id = ?'
   )
     .bind(
       b.name!.trim(),
@@ -100,6 +101,8 @@ export const adminUpdateProduct = requireAdmin(async (req, rc) => {
       b.isBestseller ? 1 : 0,
       ...dropBindings(b),
       b.aiDescription !== undefined ? b.aiDescription : existing.ai_description,
+      b.ingredients !== undefined ? (b.ingredients?.trim() || null) : existing.ingredients,
+      b.allergens !== undefined ? (b.allergens?.trim() || null) : existing.allergens,
       existing.id
     )
     .run();

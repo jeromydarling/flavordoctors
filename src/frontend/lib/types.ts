@@ -13,6 +13,8 @@ export interface Product {
   dropStartsAt?: string | null;
   dropStock?: number | null;
   inStock?: boolean;
+  ingredients?: string | null;
+  allergens?: string | null;
 }
 
 export interface Drop {

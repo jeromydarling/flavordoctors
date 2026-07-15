@@ -16,6 +16,8 @@ interface EditState {
   isDrop: boolean;
   dropStartsAt: string; // datetime-local value
   dropStock: string;
+  ingredients: string;
+  allergens: string;
 }
 
 const EMPTY: EditState = {
@@ -28,6 +30,8 @@ const EMPTY: EditState = {
   isBestseller: false,
   isDrop: false,
   dropStartsAt: '',
+  ingredients: '',
+  allergens: '',
   dropStock: '',
 };
 
@@ -66,6 +70,8 @@ export function AdminProducts() {
       isDrop: p.isDrop === true,
       dropStartsAt: toLocalInput(p.dropStartsAt),
       dropStock: p.dropStock === null || p.dropStock === undefined ? '' : String(p.dropStock),
+      ingredients: p.ingredients ?? '',
+      allergens: p.allergens ?? '',
     });
 
   const submit = async (e: FormEvent) => {
@@ -83,6 +89,8 @@ export function AdminProducts() {
       isDrop: editing.isDrop,
       dropStartsAt: editing.isDrop && editing.dropStartsAt ? new Date(editing.dropStartsAt).toISOString() : null,
       dropStock: editing.isDrop && editing.dropStock !== '' ? parseInt(editing.dropStock, 10) : null,
+      ingredients: editing.ingredients.trim() || null,
+      allergens: editing.allergens.trim() || null,
     };
     try {
       if (editing.id) await api.put(`/api/admin/products/${editing.id}`, body);
@@ -147,6 +155,10 @@ export function AdminProducts() {
           <div>
             <label htmlFor="admin-description" className="mb-1 block text-sm font-bold">Description</label>
             <textarea id="admin-description" className="input" rows={2} required value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
+            <label className="mt-3 block text-sm font-bold" htmlFor="admin-ingredients">Ingredients (from the jar label)</label>
+            <textarea id="admin-ingredients" className="input" rows={2} placeholder="Water, avocado oil, egg yolk, garlic…" value={editing.ingredients} onChange={(e) => setEditing({ ...editing, ingredients: e.target.value })} />
+            <label className="mt-3 block text-sm font-bold" htmlFor="admin-allergens">Allergens (e.g. Contains: egg, milk. Made in a facility that processes tree nuts.)</label>
+            <textarea id="admin-allergens" className="input" rows={2} placeholder="Contains: egg." value={editing.allergens} onChange={(e) => setEditing({ ...editing, allergens: e.target.value })} />
           </div>
           <div className="flex flex-wrap items-end gap-6">
             <div>

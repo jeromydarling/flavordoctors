@@ -13,6 +13,8 @@ import {
   setRecipePublished,
   deleteRecipe,
 } from './routes/recipes';
+import { privacyPolicy, termsOfService, shippingReturns } from './routes/legal';
+import { captureException } from './lib/sentry';
 import { npsRespond } from './routes/nps';
 import {
   applyAffiliate,
@@ -133,6 +135,10 @@ const router = new Router()
   // Treatment Plans (SEO recipe hub, server-rendered)
   .get('/treatment-plans', treatmentPlansIndex)
   .get('/treatment-plans/:slug', treatmentPlanPage)
+  // Legal pages, server-rendered at the edge
+  .get('/privacy', privacyPolicy)
+  .get('/terms', termsOfService)
+  .get('/shipping-returns', shippingReturns)
   // NPS pulse one-click response
   .get('/nps', npsRespond)
   // Intake Exam + Pharmacist
@@ -257,7 +263,13 @@ export default {
       url.hostname = env.CANONICAL_HOST;
       return Response.redirect(url.toString(), 301);
     }
-    const matched = await router.handle(req, env, ctx);
+    let matched: Response | undefined;
+    try {
+      matched = await router.handle(req, env, ctx);
+    } catch (err) {
+      ctx.waitUntil(captureException(env, err, { path: url.pathname, method: req.method }));
+      return errorResponse('Something went wrong on our end — the doctors have been paged.', 500);
+    }
     if (matched) return matched;
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/images/') || url.pathname.startsWith('/cdn/')) {
       return errorResponse('Not found', 404);
@@ -275,6 +287,8 @@ export default {
   },
 
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runScheduled(env, event.cron));
+    ctx.waitUntil(
+      runScheduled(env, event.cron).catch((err) => captureException(env, err, { cron: event.cron ?? 'unknown' }))
+    );
   },
 } satisfies ExportedHandler<Env>;

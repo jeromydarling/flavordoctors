@@ -141,6 +141,11 @@ export function Layout() {
           <div className="text-sm text-medical/70">
             <h2 className="mb-3 text-lg font-bold text-medical">Warning Label</h2>
             <p>Side effects may include eating this on everything. © {new Date().getFullYear()} Flavor Doctors.</p>
+            <p className="mt-3 space-x-3">
+              <a href="/privacy" className="underline hover:text-medical">Privacy</a>
+              <a href="/terms" className="underline hover:text-medical">Terms</a>
+              <a href="/shipping-returns" className="underline hover:text-medical">Shipping &amp; Returns</a>
+            </p>
           </div>
         </div>
       </footer>

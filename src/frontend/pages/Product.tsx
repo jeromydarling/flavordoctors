@@ -160,6 +160,23 @@ export function ProductPage() {
             </div>
           )}
 
+          {(product.ingredients || product.allergens) && (
+            <div className="mt-10 rounded-2xl border-2 border-navy-lighter bg-navy-light/40 p-6">
+              <h2 className="text-sm font-bold uppercase tracking-widest text-medical/60">Active Ingredients</h2>
+              {product.ingredients && (
+                <p className="mt-3 text-sm leading-relaxed text-medical/80">{product.ingredients}</p>
+              )}
+              {product.allergens && (
+                <p className="mt-3 text-sm font-bold text-gold">
+                  ⚠ Allergen information: <span className="font-normal text-medical/80">{product.allergens}</span>
+                </p>
+              )}
+              <p className="mt-3 text-xs text-medical/50">
+                Always check the label on your jar — it is the authoritative source for ingredients and allergens.
+              </p>
+            </div>
+          )}
+
           <Reviews slug={product.slug} />
 
           {/* Prescription-style AI description */}

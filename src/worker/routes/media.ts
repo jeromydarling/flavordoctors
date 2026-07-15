@@ -11,10 +11,12 @@ export async function serveMedia(req: Request, rc: RequestContext): Promise<Resp
   if (!rest || rest.includes('..')) return errorResponse('Not found', 404);
   const key = `cdn/${rest}`;
 
-  const object = await rc.env.PRODUCT_IMAGES.get(key, {
-    range: req.headers,
-    onlyIf: req.headers,
-  });
+  // Only engage range parsing when the client actually sent a Range header —
+  // passing headers unconditionally made R2 return 206 for plain GETs.
+  const object = await rc.env.PRODUCT_IMAGES.get(
+    key,
+    req.headers.has('Range') ? { range: req.headers, onlyIf: req.headers } : { onlyIf: req.headers }
+  );
   if (!object) return errorResponse('Not found', 404);
 
   const headers = new Headers();

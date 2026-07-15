@@ -66,7 +66,7 @@ function escapeHtml(s: string): string {
 }
 
 async function resolveMeta(pathname: string, origin: string, env: Env): Promise<PageMeta | null> {
-  const fallbackImage = null;
+  const fallbackImage = `${origin}/og.png`;
 
   if (STATIC_ROUTES[pathname]) {
     const base: PageMeta = {
@@ -246,6 +246,9 @@ export async function sitemapXml(env: Env, origin: string): Promise<Response> {
   const entries = [
     ...staticUrls.map((p) => `  <url><loc>${origin}${p}</loc></url>`),
     `  <url><loc>${origin}/treatment-plans</loc></url>`,
+    `  <url><loc>${origin}/privacy</loc></url>`,
+    `  <url><loc>${origin}/terms</loc></url>`,
+    `  <url><loc>${origin}/shipping-returns</loc></url>`,
     ...results.map(
       (r) =>
         `  <url><loc>${origin}/product/${r.slug}</loc><lastmod>${r.created_at.slice(0, 10)}</lastmod></url>`

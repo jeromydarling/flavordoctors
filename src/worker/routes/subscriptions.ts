@@ -48,6 +48,11 @@ export const createSubscription = requireAuth(async (req, rc) => {
     customer: customerId,
     success_url: `${origin}/account/customize?welcome=1`,
     cancel_url: `${origin}/subscribe`,
+    shipping_address_collection: { allowed_countries: ['US'] },
+    // Enable after activating Stripe Tax in the dashboard (set STRIPE_TAX_ENABLED="1").
+    ...(rc.env.STRIPE_TAX_ENABLED === '1'
+      ? { automatic_tax: { enabled: true }, customer_update: { shipping: 'auto' } }
+      : {}),
     ...(discounts ? { discounts } : {}),
     line_items: [
       {

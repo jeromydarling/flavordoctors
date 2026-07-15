@@ -24,6 +24,8 @@ export function publicProduct(p: ProductRow & { on_hand?: number | null }) {
     isDrop: p.is_drop === 1,
     dropStartsAt: p.drop_starts_at,
     dropStock: p.drop_stock,
+    ingredients: p.ingredients ?? null,
+    allergens: p.allergens ?? null,
     inStock: p.on_hand === undefined || p.on_hand === null ? true : p.on_hand > 0,
   };
 }

@@ -130,6 +130,8 @@ export async function createCheckout(req: Request, rc: RequestContext): Promise<
       ? { customer: await ensureStripeCustomer(rc.env, user.id, user.email) }
       : { customer_creation: 'always' }),
     shipping_address_collection: { allowed_countries: ['US'] },
+    // Enable after activating Stripe Tax in the dashboard (set STRIPE_TAX_ENABLED="1").
+    ...(rc.env.STRIPE_TAX_ENABLED === '1' ? { automatic_tax: { enabled: true } } : {}),
     shipping_options: [
       {
         shipping_rate_data: {

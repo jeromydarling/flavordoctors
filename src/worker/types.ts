@@ -29,6 +29,8 @@ export interface Env {
   GA4_MEASUREMENT_ID?: string;
   GA4_API_SECRET?: string;
   GSC_VERIFICATION?: string; // google-site-verification meta tag token
+  STRIPE_TAX_ENABLED?: string; // "1" once Stripe Tax is activated in the dashboard
+  SENTRY_DSN?: string; // error monitoring; unset = disabled
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;
@@ -64,6 +66,8 @@ export interface ProductRow {
   is_drop: number;
   drop_starts_at: string | null;
   drop_stock: number | null;
+  ingredients: string | null;
+  allergens: string | null;
   created_at: string;
 }
 
