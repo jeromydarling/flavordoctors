@@ -11,11 +11,12 @@ export async function serveMedia(req: Request, rc: RequestContext): Promise<Resp
   if (!rest || rest.includes('..')) return errorResponse('Not found', 404);
   const key = `cdn/${rest}`;
 
-  // Only engage range parsing when the client actually sent a Range header —
-  // passing headers unconditionally made R2 return 206 for plain GETs.
+  // R2 populates object.range even for full-body reads, so gate the 206 path
+  // on the client having actually sent a Range header.
+  const wantsRange = req.headers.has('Range');
   const object = await rc.env.PRODUCT_IMAGES.get(
     key,
-    req.headers.has('Range') ? { range: req.headers, onlyIf: req.headers } : { onlyIf: req.headers }
+    wantsRange ? { range: req.headers, onlyIf: req.headers } : { onlyIf: req.headers }
   );
   if (!object) return errorResponse('Not found', 404);
 
@@ -31,7 +32,7 @@ export async function serveMedia(req: Request, rc: RequestContext): Promise<Resp
     return new Response(null, { status: 304, headers });
   }
 
-  if (object.range && 'offset' in object.range) {
+  if (wantsRange && object.range && 'offset' in object.range) {
     const offset = object.range.offset ?? 0;
     const length = object.range.length ?? object.size - offset;
     headers.set('Content-Range', `bytes ${offset}-${offset + length - 1}/${object.size}`);
