@@ -10,6 +10,7 @@ import { emitEvent } from './lib/events';
 import { processPendingEvents } from './lib/socialKits';
 import { drainOutbox } from './lib/outbox';
 import { crmDailySweep } from './lib/crm';
+import { pollSpots } from './lib/videoSpots';
 
 const SITE_URL = 'https://flavordoctors.com';
 
@@ -26,6 +27,7 @@ export async function runScheduled(env: Env, cron?: string): Promise<void> {
     await processMediaImports(env).catch((e) => console.error('Media import failed:', e));
     await processPendingEvents(env).catch((e) => console.error('Social kit drain failed:', e));
     await dropLiveEvents(env).catch((e) => console.error('Drop-live sweep failed:', e));
+    await pollSpots(env).catch((e) => console.error('Spot poll failed:', e));
     return;
   }
   const results = await Promise.allSettled([

@@ -3,6 +3,7 @@ import { api, ApiError } from '../../lib/api';
 import { PageSpinner } from '../../components/Protected';
 import { AdminNav } from './AdminNav';
 import { DraftsPanel } from './DraftsPanel';
+import { SpotsPanel } from './SpotsPanel';
 
 interface Campaign {
   id: string; name: string; segment: string; subject: string; subject_b: string | null;
@@ -70,6 +71,7 @@ export function AdminMarketing() {
       {message && <p className="mb-4 rounded bg-rx/10 p-3 font-semibold text-rx">{message}</p>}
 
       <DraftsPanel />
+      <SpotsPanel />
 
       {/* Contacts */}
       <div className="flex flex-wrap gap-4">

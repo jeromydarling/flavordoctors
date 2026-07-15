@@ -32,6 +32,11 @@ export interface Env {
   STRIPE_TAX_ENABLED?: string; // "1" once Stripe Tax is activated in the dashboard
   SENTRY_DSN?: string; // error monitoring; unset = disabled
   OUTBOX_BATCH?: string; // marketing sends drained per 2-min tick (default 10)
+  HIGGSFIELD_KEY?: string; // platform.higgsfield.ai API key (video spots)
+  HIGGSFIELD_SECRET?: string;
+  HIGGSFIELD_VIDEO_MODEL?: string; // override the default image-to-video model
+  ELEVENLABS_API_KEY?: string; // voiceover + music for spots
+  ELEVENLABS_VOICE_ID?: string; // default: Brian, the brand promo voice
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;

@@ -28,6 +28,7 @@ import {
   crmCompleteTask,
   crmSweepNow,
 } from './routes/adminCrm';
+import { listSpots, createSpotRoute, updateSpot, submitSpotRoute, spotAudioRoute, pollSpotsRoute } from './routes/adminSpots';
 import { npsRespond } from './routes/nps';
 import {
   applyAffiliate,
@@ -264,6 +265,13 @@ const router = new Router()
   .delete('/api/admin/recipes/:id', deleteRecipe)
   .post('/api/admin/marketing/outbox/drain', drainOutboxNow)
   .get('/api/admin/marketing/outbox', outboxStatus)
+  // Video spots (Higgsfield + ElevenLabs connectors)
+  .get('/api/admin/marketing/spots', listSpots)
+  .post('/api/admin/marketing/spots', createSpotRoute)
+  .put('/api/admin/marketing/spots/:id', updateSpot)
+  .post('/api/admin/marketing/spots/:id/submit', submitSpotRoute)
+  .post('/api/admin/marketing/spots/:id/audio', spotAudioRoute)
+  .post('/api/admin/marketing/spots/poll', pollSpotsRoute)
   // Vendor & distributor CRM
   .get('/api/admin/crm', crmList)
   .post('/api/admin/crm', crmCreate)
