@@ -6,6 +6,7 @@ import { audit } from '../lib/audit';
 import { runChat } from '../lib/ai';
 import { base64ToBytes } from '../lib/util';
 import { SEGMENTS, segmentEmails, sendMarketingEmail, upsertContact } from '../lib/marketing';
+import { enqueueBroadcast, drainOutbox } from '../lib/outbox';
 import { ensureCoupon, stripeRequest, type StripeError } from '../lib/stripe';
 
 // ---------- Campaign Studio ----------
@@ -89,22 +90,36 @@ export const sendCampaign = requireAdmin(async (req, rc) => {
   const emails = await segmentEmails(rc.env, campaign.segment);
   if (emails.length === 0) return errorResponse('Segment has no consented contacts');
 
-  const origin = new URL(req.url).origin;
-  let sent = 0;
-  for (const [i, email] of emails.entries()) {
-    const variant = campaign.subject_b && i % 2 === 1 ? 'b' : 'a';
-    const subject = variant === 'b' ? campaign.subject_b! : campaign.subject;
-    const ok = await sendMarketingEmail(rc.env, origin, email, subject, campaign.body_html, { campaignId: campaign.id });
-    if (ok) {
-      sent++;
-      await rc.env.DB.prepare("INSERT INTO campaign_events (campaign_id, email, variant, kind) VALUES (?, ?, ?, 'sent')")
-        .bind(campaign.id, email, variant)
-        .run();
-    }
-  }
-  await rc.env.DB.prepare("UPDATE campaigns SET status = 'sent', sent_count = ? WHERE id = ?").bind(sent, campaign.id).run();
-  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'campaign_send', campaign.id, `${sent}/${emails.length} sent (${campaign.segment})`));
-  return json({ ok: true, sent, audience: emails.length });
+  // Queue instead of blasting inline: the paced outbox drains a few sends per
+  // cron tick (warm-up-friendly), with suppression re-checked at send time.
+  const recipients = emails.map((email, i) => ({
+    email,
+    variant: campaign.subject_b && i % 2 === 1 ? 'b' : 'a',
+  }));
+  const { queued, suppressed } = await enqueueBroadcast(
+    rc.env, campaign.id, recipients, campaign.subject, campaign.subject_b, campaign.body_html
+  );
+  await rc.env.DB.prepare("UPDATE campaigns SET status = 'sending' WHERE id = ?").bind(campaign.id).run();
+  rc.ctx.waitUntil(audit(rc.env, rc.user!.email, 'campaign_send', campaign.id, `${queued} queued, ${suppressed} suppressed (${campaign.segment})`));
+  return json({ ok: true, queued, suppressed, audience: emails.length });
+});
+
+/** Ops utility: drain a batch immediately instead of waiting for the cron. */
+export const drainOutboxNow = requireAdmin(async (req, rc) => {
+  const url = new URL(req.url);
+  const batch = Math.min(parseInt(url.searchParams.get('batch') ?? '', 10) || 0, 500) || undefined;
+  const result = await drainOutbox(rc.env, url.origin, batch);
+  return json(result);
+});
+
+/** Outbox progress per campaign (queued/sent/failed/suppressed). */
+export const outboxStatus = requireAdmin(async (_req, rc) => {
+  const { results } = await rc.env.DB.prepare(
+    'SELECT broadcast_id, status, COUNT(*) n FROM mkt_sends GROUP BY broadcast_id, status'
+  ).all<{ broadcast_id: string; status: string; n: number }>();
+  const byCampaign: Record<string, Record<string, number>> = {};
+  for (const r of results) (byCampaign[r.broadcast_id] ??= {})[r.status] = r.n;
+  return json({ outbox: byCampaign });
 });
 
 // ---------- Flows ----------

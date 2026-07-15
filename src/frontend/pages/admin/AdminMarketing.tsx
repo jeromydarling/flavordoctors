@@ -133,11 +133,17 @@ export function AdminMarketing() {
                   onClick={() => run(`test-${c.id}`, () => api.post(`/api/admin/marketing/campaigns/${c.id}/test`), 'Test sent to your inbox.')}>
                   Test → me
                 </button>
-                {c.status !== 'sent' && (
+                {c.status === 'draft' && (
                   <button className="btn-rx !px-3 !py-1 !text-sm" disabled={busy !== null}
-                    onClick={() => window.confirm(`Send "${c.name}" to segment "${c.segment}" now?`) &&
-                      run(`send-${c.id}`, () => api.post(`/api/admin/marketing/campaigns/${c.id}/send`), 'Campaign sent!')}>
-                    {busy === `send-${c.id}` ? 'Sending…' : 'Send'}
+                    onClick={() => window.confirm(`Queue "${c.name}" to segment "${c.segment}"? The outbox sends it out in paced batches.`) &&
+                      run(`send-${c.id}`, () => api.post(`/api/admin/marketing/campaigns/${c.id}/send`), 'Campaign queued! The outbox drains it over the next minutes.')}>
+                    {busy === `send-${c.id}` ? 'Queueing…' : 'Send'}
+                  </button>
+                )}
+                {c.status === 'sending' && (
+                  <button className="rounded bg-gold/20 !px-3 !py-1 !text-sm font-bold text-gold" disabled={busy !== null}
+                    onClick={() => run(`drain-${c.id}`, () => api.post('/api/admin/marketing/outbox/drain'), 'Drained a batch.')}>
+                    {busy === `drain-${c.id}` ? 'Draining…' : 'Sending… (drain now)'}
                   </button>
                 )}
               </div>

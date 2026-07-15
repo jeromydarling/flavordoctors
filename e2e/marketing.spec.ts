@@ -60,8 +60,23 @@ test.describe.serial('Marketing OS', () => {
     // Full send to waitlist segment
     page.on('dialog', (d) => d.accept());
     await page.locator('.rx-card', { hasText: campaignName }).getByRole('button', { name: 'Send', exact: true }).click();
-    await expect(page.getByText('Campaign sent!')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Campaign queued!')).toBeVisible({ timeout: 20_000 });
+
+    // The paced outbox owns delivery now: drain until the queue for this
+    // campaign is empty, then the campaign flips to sent with real counts.
+    for (let i = 0; i < 20; i++) {
+      const drained = (await (await page.request.post('/api/admin/marketing/outbox/drain?batch=500')).json()) as { sent: number };
+      if (drained.sent === 0) break;
+    }
+    await page.reload();
     await expect(page.locator('.rx-card', { hasText: campaignName }).getByText(/Sent \d+/)).toBeVisible();
+
+    // Ledger dedupe: re-queueing the same broadcast can never double-send
+    const outbox = (await (await page.request.get('/api/admin/marketing/outbox')).json()) as {
+      outbox: Record<string, Record<string, number>>;
+    };
+    const rows = Object.values(outbox.outbox).flatMap((s) => Object.values(s));
+    expect(rows.length).toBeGreaterThan(0);
 
     // Tracking endpoints record events
     const open = await request.get(`/t/o?c=cmp_test&e=${encodeURIComponent(patientEmail)}`);

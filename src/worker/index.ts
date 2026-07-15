@@ -102,6 +102,8 @@ import {
   rangeMeCsv,
   pendingReviews,
   moderateReview,
+  drainOutboxNow,
+  outboxStatus,
 } from './routes/adminMarketing';
 import { listStaff, setStaffRole } from './routes/adminStaff';
 import { getInventory, receiveStock, adjustStock, setReorderPoint } from './routes/adminInventory';
@@ -249,6 +251,8 @@ const router = new Router()
   .put('/api/admin/recipes/:id', updateRecipe)
   .post('/api/admin/recipes/:id/publish', setRecipePublished)
   .delete('/api/admin/recipes/:id', deleteRecipe)
+  .post('/api/admin/marketing/outbox/drain', drainOutboxNow)
+  .get('/api/admin/marketing/outbox', outboxStatus)
   // Auto-drafted marketing kits (event-driven)
   .get('/api/admin/marketing/drafts', listDrafts)
   .put('/api/admin/marketing/drafts/:id', updateDraft)

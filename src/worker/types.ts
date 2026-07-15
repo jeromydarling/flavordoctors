@@ -31,6 +31,7 @@ export interface Env {
   GSC_VERIFICATION?: string; // google-site-verification meta tag token
   STRIPE_TAX_ENABLED?: string; // "1" once Stripe Tax is activated in the dashboard
   SENTRY_DSN?: string; // error monitoring; unset = disabled
+  OUTBOX_BATCH?: string; // marketing sends drained per 2-min tick (default 10)
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   JWT_SECRET: string;

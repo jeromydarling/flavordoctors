@@ -8,6 +8,7 @@ import { npsSig } from './routes/nps';
 
 import { emitEvent } from './lib/events';
 import { processPendingEvents } from './lib/socialKits';
+import { drainOutbox } from './lib/outbox';
 
 const SITE_URL = 'https://flavordoctors.com';
 
@@ -16,6 +17,10 @@ const SITE_URL = 'https://flavordoctors.com';
  * the daily 16:00 UTC trigger runs the full lifecycle batch as before.
  */
 export async function runScheduled(env: Env, cron?: string): Promise<void> {
+  if (cron === '*/2 * * * *') {
+    await drainOutbox(env, SITE_URL).catch((e) => console.error('Outbox drain failed:', e));
+    return;
+  }
   if (cron === '*/10 * * * *') {
     await processMediaImports(env).catch((e) => console.error('Media import failed:', e));
     await processPendingEvents(env).catch((e) => console.error('Social kit drain failed:', e));
