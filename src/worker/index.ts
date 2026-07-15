@@ -17,6 +17,17 @@ import { privacyPolicy, termsOfService, shippingReturns } from './routes/legal';
 import { captureException } from './lib/sentry';
 import { getBrandSettings, updateBrandSettings, previewBrandEmail } from './routes/adminBrand';
 import { listDrafts, updateDraft, draftToCampaign, processDraftEvents } from './routes/adminDrafts';
+import {
+  crmList,
+  crmCreate,
+  crmDetail,
+  crmUpdate,
+  crmAddInteraction,
+  crmComposeEmail,
+  crmAddTask,
+  crmCompleteTask,
+  crmSweepNow,
+} from './routes/adminCrm';
 import { npsRespond } from './routes/nps';
 import {
   applyAffiliate,
@@ -253,6 +264,16 @@ const router = new Router()
   .delete('/api/admin/recipes/:id', deleteRecipe)
   .post('/api/admin/marketing/outbox/drain', drainOutboxNow)
   .get('/api/admin/marketing/outbox', outboxStatus)
+  // Vendor & distributor CRM
+  .get('/api/admin/crm', crmList)
+  .post('/api/admin/crm', crmCreate)
+  .get('/api/admin/crm/:id', crmDetail)
+  .put('/api/admin/crm/:id', crmUpdate)
+  .post('/api/admin/crm/:id/interactions', crmAddInteraction)
+  .post('/api/admin/crm/:id/email', crmComposeEmail)
+  .post('/api/admin/crm/:id/tasks', crmAddTask)
+  .post('/api/admin/crm/tasks/:taskId/done', crmCompleteTask)
+  .post('/api/admin/crm/sweep', crmSweepNow)
   // Auto-drafted marketing kits (event-driven)
   .get('/api/admin/marketing/drafts', listDrafts)
   .put('/api/admin/marketing/drafts/:id', updateDraft)

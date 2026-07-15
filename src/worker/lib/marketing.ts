@@ -58,6 +58,18 @@ export async function upsertContact(
  * All queries return a single `email` column.
  */
 export const SEGMENTS: Record<string, { name: string; sql: string }> = {
+  crm_vendors: {
+    name: 'B2B: vendors (CRM)',
+    sql: `SELECT email FROM crm_contacts WHERE kind = 'vendor' AND status != 'dormant'`,
+  },
+  crm_distributors: {
+    name: 'B2B: distributors (CRM)',
+    sql: `SELECT email FROM crm_contacts WHERE kind = 'distributor' AND status != 'dormant'`,
+  },
+  crm_retailers: {
+    name: 'B2B: retail buyers (CRM)',
+    sql: `SELECT email FROM crm_contacts WHERE kind = 'retailer' AND status != 'dormant'`,
+  },
   all_contacts: {
     name: 'All consented contacts',
     sql: `SELECT email FROM contacts WHERE marketing_consent = 1`,

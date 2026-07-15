@@ -9,6 +9,7 @@ import { npsSig } from './routes/nps';
 import { emitEvent } from './lib/events';
 import { processPendingEvents } from './lib/socialKits';
 import { drainOutbox } from './lib/outbox';
+import { crmDailySweep } from './lib/crm';
 
 const SITE_URL = 'https://flavordoctors.com';
 
@@ -38,6 +39,7 @@ export async function runScheduled(env: Env, cron?: string): Promise<void> {
     affiliateNightly(env),
     processMediaImports(env),
     processPendingEvents(env),
+    crmDailySweep(env),
   ]);
   for (const r of results) {
     if (r.status === 'rejected') console.error('Scheduled job failed:', r.reason);
