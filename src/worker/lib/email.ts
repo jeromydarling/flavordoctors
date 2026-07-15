@@ -19,9 +19,35 @@ function parseFrom(raw: string | undefined): EmailAddress {
  *  2. Resend (RESEND_API_KEY secret) — fallback if the binding is absent or errors.
  *  3. No-op with a log line — email problems never break checkout flows.
  */
-export async function sendEmail(env: Env, to: string, subject: string, html: string): Promise<void> {
+export interface SendOptions {
+  /** Skip the branded shell (caller supplies a complete document). */
+  raw?: boolean;
+  heading?: string;
+  cta?: { label: string; url: string };
+}
+
+export async function sendEmail(env: Env, to: string, subject: string, html: string, opts: SendOptions = {}): Promise<void> {
   const from = parseFrom(env.EMAIL_FROM);
-  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  to = to.toLowerCase();
+  let text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!opts.raw) {
+    try {
+      const { getBrand } = await import('./brand');
+      const { renderBrandedEmail } = await import('./emailShell');
+      const brand = await getBrand(env);
+      if (env.BUSINESS_ADDRESS) brand.postalAddress = env.BUSINESS_ADDRESS;
+      const rendered = renderBrandedEmail(brand, {
+        bodyHtml: html,
+        heading: opts.heading,
+        cta: opts.cta,
+        kind: 'transactional',
+      });
+      html = rendered.html;
+      text = rendered.text;
+    } catch (err) {
+      console.error('Brand shell render failed; sending unwrapped:', err);
+    }
+  }
 
   if (env.EMAIL) {
     try {

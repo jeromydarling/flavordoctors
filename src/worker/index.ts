@@ -15,6 +15,7 @@ import {
 } from './routes/recipes';
 import { privacyPolicy, termsOfService, shippingReturns } from './routes/legal';
 import { captureException } from './lib/sentry';
+import { getBrandSettings, updateBrandSettings, previewBrandEmail } from './routes/adminBrand';
 import { npsRespond } from './routes/nps';
 import {
   applyAffiliate,
@@ -247,6 +248,10 @@ const router = new Router()
   .put('/api/admin/recipes/:id', updateRecipe)
   .post('/api/admin/recipes/:id/publish', setRecipePublished)
   .delete('/api/admin/recipes/:id', deleteRecipe)
+  // Brand Studio
+  .get('/api/admin/brand', getBrandSettings)
+  .put('/api/admin/brand', updateBrandSettings)
+  .get('/api/admin/brand/preview', previewBrandEmail)
   // Stripe webhooks
   .post('/api/webhooks/stripe', stripeWebhook)
   // Product images from R2

@@ -1,5 +1,7 @@
 import type { Env } from '../types';
 import { sendEmail } from './email';
+import { getBrand } from './brand';
+import { renderBrandedEmail } from './emailShell';
 import { bytesToBase64Url } from './util';
 
 export interface ContactRow {
@@ -108,21 +110,6 @@ export function instrumentHtml(html: string, origin: string, campaignId: string,
   return `${withClicks}<img src="${origin}/t/o?c=${campaignId}&e=${e}" width="1" height="1" alt="" style="display:none">`;
 }
 
-const MARKETING_WRAPPER = (inner: string, unsubUrl: string, address: string) => `
-<div style="font-family: Georgia, serif; max-width: 560px; margin: 0 auto; border: 2px solid #0D1B2A; border-radius: 8px; overflow: hidden;">
-  <div style="background: #0D1B2A; color: #F5F5F5; padding: 20px 28px;">
-    <span style="font-size: 26px; font-weight: bold;">℞ Flavor Doctors</span>
-  </div>
-  <div style="padding: 28px; background: #F5F5F5; color: #0D1B2A; font-size: 16px; line-height: 1.6;">
-    ${inner}
-  </div>
-  <div style="background: #0D1B2A; color: #9aa7b5; padding: 14px 28px; font-size: 12px; line-height: 1.6;">
-    <span style="color:#F5A623;">Side effects may include eating this on everything.</span><br>
-    ${address}<br>
-    You're receiving this because you joined the Flavor Doctors list.
-    <a href="${unsubUrl}" style="color:#9aa7b5;">Unsubscribe</a>
-  </div>
-</div>`;
 
 /**
  * Send a MARKETING email: consent-checked, CAN-SPAM footer with unsubscribe,
@@ -137,10 +124,14 @@ export async function sendMarketingEmail(
   innerHtml: string,
   opts: { campaignId?: string } = {}
 ): Promise<boolean> {
+  const email = to.toLowerCase();
   const contact = await env.DB.prepare('SELECT * FROM contacts WHERE email = ?')
-    .bind(to.toLowerCase())
+    .bind(email)
     .first<ContactRow>();
   if (!contact || contact.marketing_consent !== 1) return false;
+  // Permanent suppression list beats everything, re-checked at send time.
+  const suppressed = await env.DB.prepare('SELECT email FROM mkt_suppression WHERE email = ?').bind(email).first();
+  if (suppressed) return false;
 
   const unsubUrl = `${origin}/unsubscribe?token=${contact.unsub_token}`;
   let inner = innerHtml
@@ -148,8 +139,9 @@ export async function sendMarketingEmail(
     .replaceAll('{{REF_CODE}}', contact.ref_code ?? '');
   if (opts.campaignId) inner = instrumentHtml(inner, origin, opts.campaignId, to);
 
-  const address = env.BUSINESS_ADDRESS ?? 'Flavor Doctors · New Prague, MN, USA';
-  const html = MARKETING_WRAPPER(inner, unsubUrl, address);
+  const brand = await getBrand(env);
+  if (env.BUSINESS_ADDRESS) brand.postalAddress = env.BUSINESS_ADDRESS;
+  const { html, text } = renderBrandedEmail(brand, { bodyHtml: inner, kind: 'marketing', unsubUrl });
 
   // Prefer the Email Service binding directly so we can set List-Unsubscribe.
   if (env.EMAIL) {
@@ -159,7 +151,8 @@ export async function sendMarketingEmail(
         to,
         subject,
         html,
-        text: inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+        text,
+        replyTo: brand.replyTo || undefined,
         headers: {
           'List-Unsubscribe': `<${unsubUrl}>`,
           'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
@@ -167,11 +160,14 @@ export async function sendMarketingEmail(
       });
       return true;
     } catch (err) {
-      if ((err as { code?: string }).code === 'E_RECIPIENT_SUPPRESSED') return false;
+      if ((err as { code?: string }).code === 'E_RECIPIENT_SUPPRESSED') {
+        await env.DB.prepare("INSERT OR IGNORE INTO mkt_suppression (email, reason) VALUES (?, 'bounce')").bind(email).run();
+        return false;
+      }
       console.error('Marketing send via Email Service failed, falling back:', err);
     }
   }
-  await sendEmail(env, to, subject, html);
+  await sendEmail(env, email, subject, html);
   return true;
 }
 

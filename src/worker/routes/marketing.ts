@@ -79,11 +79,47 @@ async function maybeRewardReferrer(rc: RequestContext, refCode: string): Promise
 export async function unsubscribe(req: Request, rc: RequestContext): Promise<Response> {
   const token = new URL(req.url).searchParams.get('token') ?? '';
   if (!token) return errorResponse('Missing token', 400);
-  const result = await rc.env.DB.prepare('UPDATE contacts SET marketing_consent = 0 WHERE unsub_token = ?')
-    .bind(token)
-    .run();
-  const found = result.meta.changes > 0;
-  if (req.method === 'POST') return json({ ok: found });
+
+  // GET only LOOKS UP the token and renders a confirm page — mail scanners
+  // prefetch links, so the state change happens exclusively on POST
+  // (both the confirm form and RFC 8058 one-click land here).
+  let found: boolean;
+  if (req.method === 'POST') {
+    const contact = await rc.env.DB.prepare('SELECT email FROM contacts WHERE unsub_token = ?')
+      .bind(token)
+      .first<{ email: string }>();
+    found = !!contact;
+    if (contact) {
+      await rc.env.DB.prepare('UPDATE contacts SET marketing_consent = 0 WHERE unsub_token = ?').bind(token).run();
+      await rc.env.DB.prepare("INSERT OR IGNORE INTO mkt_suppression (email, reason) VALUES (?, 'unsubscribe')")
+        .bind(contact.email.toLowerCase())
+        .run();
+    }
+    const accept = req.headers.get('Accept') ?? '';
+    const isForm = (req.headers.get('Content-Type') ?? '').includes('form') && accept.includes('text/html');
+    if (!isForm) return json({ ok: found });
+    // fall through to render the confirmation page for the browser form post
+  } else {
+    const contact = await rc.env.DB.prepare('SELECT email FROM contacts WHERE unsub_token = ?')
+      .bind(token)
+      .first<{ email: string }>();
+    if (contact) {
+      const confirm = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Unsubscribe — Flavor Doctors</title>
+<meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="font-family:Georgia,serif;background:#0D1B2A;color:#F5F5F5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">
+<div style="max-width:480px;padding:40px;text-align:center">
+<div style="font-size:48px">🩺</div>
+<h1 style="color:#F5A623">Leaving the clinic?</h1>
+<p style="font-size:18px;line-height:1.6;color:#c9d2dc">Confirm below and we'll stop sending marketing email to <strong>${contact.email.replace(/</g, '&lt;')}</strong>. Order and account emails still arrive.</p>
+<form method="post" action="/unsubscribe?token=${encodeURIComponent(token)}">
+<button type="submit" style="background:#2ECC71;color:#0D1B2A;font-weight:bold;font-size:17px;padding:14px 28px;border:0;border-radius:10px;cursor:pointer">Confirm unsubscribe</button>
+</form>
+<p style="margin-top:16px"><a href="https://flavordoctors.com" style="color:#F5A623">Never mind — back to the pharmacy</a></p>
+</div></body></html>`;
+      return new Response(confirm, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+    found = false;
+  }
   const body = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Unsubscribed — Flavor Doctors</title>
 <meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="font-family:Georgia,serif;background:#0D1B2A;color:#F5F5F5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">

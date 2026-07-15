@@ -24,6 +24,7 @@ import { AdminContent } from './pages/admin/AdminContent';
 import { AdminCustomers } from './pages/admin/AdminCustomers';
 import { AdminInbox } from './pages/admin/AdminInbox';
 import { AdminStaff } from './pages/admin/AdminStaff';
+import { AdminBrand } from './pages/admin/AdminBrand';
 import { AdminInventory } from './pages/admin/AdminInventory';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
@@ -185,6 +186,14 @@ export default function App() {
           element={
             <RequireAdmin>
               <AdminStaff />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/brand"
+          element={
+            <RequireAdmin>
+              <AdminBrand />
             </RequireAdmin>
           }
         />
